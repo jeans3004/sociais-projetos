@@ -207,6 +207,47 @@ npm run build
 npm start
 ```
 
+## 👥 Colaboração
+
+### Repositório GitHub
+**URL:** https://github.com/jeans3004/sociais-projetos
+
+### Deploy em Produção
+**URL:** https://projetos-sociais-cm.vercel.app
+**Painel Vercel:** https://vercel.com/jean-machados-projects-45710c3a/projetos-sociais-cm
+
+### Como Colaborar
+
+1. **Seja adicionado como colaborador no GitHub**
+2. **Clone o repositório:**
+   ```bash
+   git clone git@github.com:jeans3004/sociais-projetos.git
+   cd sociais-projetos
+   npm install
+   ```
+
+3. **Crie uma branch para sua feature:**
+   ```bash
+   git checkout -b feature/nome-da-feature
+   ```
+
+4. **Faça suas alterações e commit:**
+   ```bash
+   git add .
+   git commit -m "feat: descrição da alteração"
+   ```
+
+5. **Push e abra um Pull Request:**
+   ```bash
+   git push origin feature/nome-da-feature
+   ```
+   - O Vercel criará automaticamente um deploy de preview
+   - Aguarde review antes do merge para produção
+
+📖 **Para guia completo de colaboração, veja:** [COLABORACAO.md](./COLABORACAO.md)
+
+---
+
 ## Deploy
 
 ### Deploy Automático com GitHub Actions (Recomendado)
