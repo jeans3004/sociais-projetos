@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Plus, Search, Upload, Edit, Trash2, Users2, AlertTriangle } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,6 @@ import {
 
 export default function AlunosPage() {
   const [students, setStudents] = useState<Student[]>([]);
-  const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -68,16 +67,11 @@ export default function AlunosPage() {
     loadStudents();
   }, []);
 
-  useEffect(() => {
-    filterStudents();
-  }, [searchTerm, students]);
-
   const loadStudents = async () => {
     try {
       setLoading(true);
       const data = await getStudents();
       setStudents(data);
-      setFilteredStudents(data);
     } catch (error) {
       console.error("Error loading students:", error);
       toast({
@@ -90,28 +84,20 @@ export default function AlunosPage() {
     }
   };
 
-  const filterStudents = () => {
-    if (!searchTerm) {
-      setFilteredStudents(students);
-      return;
-    }
+  // Optimized filtering with useMemo - only recalculates when dependencies change
+  const filteredStudents = useMemo(() => {
+    if (!searchTerm) return students;
 
-    const filtered = students.filter(
+    const searchLower = searchTerm.toLowerCase();
+    return students.filter(
       (student) =>
-        student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.class.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.parentEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (student.coordination &&
-          student.coordination
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())) ||
-        (student.registrationNumber &&
-          student.registrationNumber
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()))
+        student.fullName.toLowerCase().includes(searchLower) ||
+        student.class.toLowerCase().includes(searchLower) ||
+        student.parentEmail.toLowerCase().includes(searchLower) ||
+        (student.coordination?.toLowerCase().includes(searchLower)) ||
+        (student.registrationNumber?.toLowerCase().includes(searchLower))
     );
-    setFilteredStudents(filtered);
-  };
+  }, [searchTerm, students]);
 
   const handleCreateStudent = async (data: StudentFormData) => {
     try {
@@ -190,9 +176,16 @@ export default function AlunosPage() {
     setDeleteDialogOpen(true);
   };
 
-  // Group students hierarchically
-  const groupedStudents = groupStudentsHierarchically(filteredStudents);
-  const coordinations = getSortedCoordinations(groupedStudents);
+  // Memoized grouping - only recalculates when filtered students change
+  const groupedStudents = useMemo(
+    () => groupStudentsHierarchically(filteredStudents),
+    [filteredStudents]
+  );
+
+  const coordinations = useMemo(
+    () => getSortedCoordinations(groupedStudents),
+    [groupedStudents]
+  );
 
   return (
     <RoleGuard allowedRoles={["admin"]}>
@@ -235,21 +228,21 @@ export default function AlunosPage() {
             placeholder="Buscar por nome, turma, coordenação, matrícula ou email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-11 text-base"
           />
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground bg-muted/50 rounded-lg p-4">
+      <div className="flex items-center justify-between text-sm text-muted-foreground border rounded-lg p-4 bg-card">
         <div className="flex items-center gap-2">
           <Users2 className="h-4 w-4" />
           <span>
-            Exibindo {filteredStudents.length} de {students.length} aluno(s)
+            Exibindo <strong className="text-foreground">{filteredStudents.length}</strong> de {students.length} aluno(s)
           </span>
         </div>
         {coordinations.length > 0 && (
           <span>
-            {coordinations.length} coordenação(ões)
+            <strong className="text-foreground">{coordinations.length}</strong> coordenação(ões)
           </span>
         )}
       </div>
@@ -263,7 +256,7 @@ export default function AlunosPage() {
           </p>
         </div>
       ) : (
-        <div className="rounded-lg border">
+        <div className="rounded-lg border bg-card">
           <Accordion type="multiple" className="w-full">
             {coordinations.map((coordination) => {
               const grades = groupedStudents[coordination];
@@ -271,32 +264,34 @@ export default function AlunosPage() {
 
               return (
                 <AccordionItem key={coordination} value={coordination}>
-                  <AccordionTrigger className="px-6 hover:bg-muted/50">
+                  <AccordionTrigger className="px-6 hover:no-underline">
                     <div className="flex items-center gap-4">
                       <span className="font-semibold text-lg">
                         {coordination}
                       </span>
-                      <Badge variant="secondary">{totalStudents} alunos</Badge>
+                      <Badge variant="secondary" className="font-normal">
+                        {totalStudents} alunos
+                      </Badge>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent>
-                    <Accordion type="multiple" className="w-full px-6">
+                  <AccordionContent className="pb-2">
+                    <Accordion type="multiple" className="w-full px-4">
                       {getSortedGrades(grades).map((grade) => {
                         const classes = grades[grade];
                         const gradeTotal = countStudentsInGrade(classes);
 
                         return (
                           <AccordionItem key={`${coordination}-${grade}`} value={grade}>
-                            <AccordionTrigger className="hover:bg-muted/30 px-4">
+                            <AccordionTrigger className="px-4 hover:no-underline">
                               <div className="flex items-center gap-3">
                                 <span className="font-medium">{grade}</span>
-                                <Badge variant="outline">
+                                <Badge variant="outline" className="font-normal">
                                   {gradeTotal} alunos
                                 </Badge>
                               </div>
                             </AccordionTrigger>
-                            <AccordionContent>
-                              <Accordion type="multiple" className="w-full px-4">
+                            <AccordionContent className="pb-2">
+                              <Accordion type="multiple" className="w-full px-2">
                                 {getSortedClasses(classes).map((className) => {
                                   const studentsInClass = classes[className];
 
@@ -305,89 +300,92 @@ export default function AlunosPage() {
                                       key={`${coordination}-${grade}-${className}`}
                                       value={className}
                                     >
-                                      <AccordionTrigger className="hover:bg-muted/20 px-4">
+                                      <AccordionTrigger className="px-4 hover:no-underline">
                                         <div className="flex items-center gap-3">
                                           <span className="font-medium">
                                             Turma {className}
                                           </span>
-                                          <Badge>
+                                          <Badge className="font-normal">
                                             {studentsInClass.length} alunos
                                           </Badge>
                                         </div>
                                       </AccordionTrigger>
-                                      <AccordionContent className="px-4">
-                                        <Table>
-                                          <TableHeader>
-                                            <TableRow>
-                                              <TableHead>Nome</TableHead>
-                                              <TableHead>Matrícula</TableHead>
-                                              <TableHead>Email</TableHead>
-                                              <TableHead>Turno</TableHead>
-                                              <TableHead>Itens Doados</TableHead>
-                                              <TableHead>Status</TableHead>
-                                              <TableHead className="text-right">
-                                                Ações
-                                              </TableHead>
-                                            </TableRow>
-                                          </TableHeader>
-                                          <TableBody>
-                                            {studentsInClass.map((student) => (
-                                              <TableRow key={student.id}>
-                                                <TableCell className="font-medium">
-                                                  {student.fullName}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {student.registrationNumber ||
-                                                    "-"}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {student.parentEmail}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {student.shift || "-"}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {student.totalDonations || 0} itens
-                                                </TableCell>
-                                                <TableCell>
-                                                  <Badge
-                                                    variant={
-                                                      student.status === "active"
-                                                        ? "default"
-                                                        : "secondary"
-                                                    }
-                                                  >
-                                                    {student.status === "active"
-                                                      ? "Ativo"
-                                                      : "Inativo"}
-                                                  </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-right">
-                                                  <div className="flex justify-end gap-2">
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="icon"
-                                                      onClick={() =>
-                                                        openEditForm(student)
-                                                      }
-                                                    >
-                                                      <Edit className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="icon"
-                                                      onClick={() =>
-                                                        openDeleteDialog(student)
-                                                      }
-                                                    >
-                                                      <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                  </div>
-                                                </TableCell>
+                                      <AccordionContent className="px-4 pt-2">
+                                        <div className="border rounded-md">
+                                          <Table>
+                                            <TableHeader>
+                                              <TableRow className="hover:bg-transparent">
+                                                <TableHead className="font-semibold">Nome</TableHead>
+                                                <TableHead className="font-semibold">Matrícula</TableHead>
+                                                <TableHead className="font-semibold">Email</TableHead>
+                                                <TableHead className="font-semibold">Turno</TableHead>
+                                                <TableHead className="font-semibold">Itens Doados</TableHead>
+                                                <TableHead className="font-semibold">Status</TableHead>
+                                                <TableHead className="text-right font-semibold">
+                                                  Ações
+                                                </TableHead>
                                               </TableRow>
-                                            ))}
-                                          </TableBody>
-                                        </Table>
+                                            </TableHeader>
+                                            <TableBody>
+                                              {studentsInClass.map((student) => (
+                                                <TableRow key={student.id} className="hover:bg-muted/30">
+                                                  <TableCell className="font-medium">
+                                                    {student.fullName}
+                                                  </TableCell>
+                                                  <TableCell className="text-muted-foreground">
+                                                    {student.registrationNumber || "-"}
+                                                  </TableCell>
+                                                  <TableCell className="text-muted-foreground">
+                                                    {student.parentEmail}
+                                                  </TableCell>
+                                                  <TableCell className="text-muted-foreground">
+                                                    {student.shift || "-"}
+                                                  </TableCell>
+                                                  <TableCell>
+                                                    <span className="font-medium">{student.totalDonations || 0}</span> itens
+                                                  </TableCell>
+                                                  <TableCell>
+                                                    <Badge
+                                                      variant={
+                                                        student.status === "active"
+                                                          ? "default"
+                                                          : "secondary"
+                                                      }
+                                                    >
+                                                      {student.status === "active"
+                                                        ? "Ativo"
+                                                        : "Inativo"}
+                                                    </Badge>
+                                                  </TableCell>
+                                                  <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-1">
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8"
+                                                        onClick={() =>
+                                                          openEditForm(student)
+                                                        }
+                                                      >
+                                                        <Edit className="h-4 w-4" />
+                                                      </Button>
+                                                      <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-destructive hover:text-destructive"
+                                                        onClick={() =>
+                                                          openDeleteDialog(student)
+                                                        }
+                                                      >
+                                                        <Trash2 className="h-4 w-4" />
+                                                      </Button>
+                                                    </div>
+                                                  </TableCell>
+                                                </TableRow>
+                                              ))}
+                                            </TableBody>
+                                          </Table>
+                                        </div>
                                       </AccordionContent>
                                     </AccordionItem>
                                   );
