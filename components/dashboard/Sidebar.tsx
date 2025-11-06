@@ -89,10 +89,10 @@ export function Sidebar() {
     <div className="flex h-full flex-col bg-card border-r">
       <div className="p-6">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">
-            SD
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">
+            CM
           </div>
-          <span className="text-lg font-semibold">Sistema Doações</span>
+          <span className="text-lg font-semibold">Doações CM</span>
         </div>
       </div>
 

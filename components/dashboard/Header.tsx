@@ -13,7 +13,8 @@ import {
 import { signOut } from "@/lib/firebase/auth";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
+import { MobileSidebar } from "./MobileSidebar";
 
 export function Header() {
   const { user } = useAuth();
@@ -48,12 +49,20 @@ export function Header() {
 
   return (
     <header className="border-b bg-card">
-      <div className="flex h-16 items-center justify-between px-6">
-        <div>
-          <h2 className="text-xl font-semibold">
-            Bem-vindo, {user.name.split(" ")[0]}
-          </h2>
-          <p className="text-sm text-muted-foreground">{user.email}</p>
+      <div className="flex h-16 items-center justify-between px-4 md:px-6">
+        <div className="flex items-center gap-3">
+          <MobileSidebar />
+          <div className="hidden sm:block md:block">
+            <h2 className="text-lg md:text-xl font-semibold">
+              Bem-vindo, {user.name.split(" ")[0]}
+            </h2>
+            <p className="text-xs md:text-sm text-muted-foreground truncate max-w-[200px] md:max-w-none">
+              {user.email}
+            </p>
+          </div>
+          <div className="sm:hidden">
+            <h2 className="text-base font-semibold">Doações CM</h2>
+          </div>
         </div>
 
         <DropdownMenu>

@@ -75,10 +75,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-sm md:text-base text-muted-foreground">
           Visão geral das doações e métricas do sistema
         </p>
       </div>
@@ -132,11 +132,11 @@ export default function DashboardPage() {
       </Card>
 
       {/* Charts */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <div className="col-span-4">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
+        <div className="lg:col-span-4">
           <MonthlyChart data={monthlyData} />
         </div>
-        <div className="col-span-3">
+        <div className="lg:col-span-3">
           <ClassRankingCard rankings={rankings} />
         </div>
       </div>
