@@ -8,7 +8,8 @@ export type ProductType =
   | "Açúcar e biscoito"
   | "Leite em pó"
   | "Café"
-  | "Produtos de higiene e limpeza";
+  | "Produtos de higiene e limpeza"
+  | "Outros";
 
 export const PRODUCT_TYPES: ProductType[] = [
   "Arroz",
@@ -18,6 +19,7 @@ export const PRODUCT_TYPES: ProductType[] = [
   "Leite em pó",
   "Café",
   "Produtos de higiene e limpeza",
+  "Outros",
 ];
 
 export interface ProductDonation {

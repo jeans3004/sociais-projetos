@@ -23,6 +23,7 @@ export const productDonationSchema = z.object({
     "Leite em pó",
     "Café",
     "Produtos de higiene e limpeza",
+    "Outros",
   ]),
   quantity: z.number().positive("Quantidade deve ser positiva"),
   unit: z.enum(["kg", "un", "lt", "pacote"]),
@@ -37,7 +38,20 @@ export const donationSchema = z.object({
   date: z.date(),
   receiptUrl: z.string().url("URL inválida").optional().or(z.literal("")),
   notes: z.string().optional(),
-});
+}).refine(
+  (data) => {
+    // Se algum produto for "Outros", observações são obrigatórias
+    const hasOthers = data.products.some((p) => p.product === "Outros");
+    if (hasOthers) {
+      return data.notes && data.notes.trim().length > 0;
+    }
+    return true;
+  },
+  {
+    message: "Observações são obrigatórias quando o produto 'Outros' é selecionado",
+    path: ["notes"],
+  }
+);
 
 // Settings validation schema
 export const settingsSchema = z.object({
