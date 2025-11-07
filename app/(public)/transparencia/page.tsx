@@ -306,121 +306,119 @@ export default function TransparencyPage() {
   const isLoading = donationsLoading || ticketsLoading || auditLoading || settingsLoading;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
-      <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),_transparent_60%)]" />
-        <div className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
-          <div className="mx-auto max-w-3xl text-center">
-            <Badge variant="secondary" className="mb-4 inline-flex items-center gap-2 border-primary/20 bg-primary/10 text-primary">
-              <ShieldCheck className="h-4 w-4" /> Portal da Transparência
-            </Badge>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
-              Acompanhe a campanha de doações e rifas em tempo real
-            </h1>
-            <p className="mt-4 text-base text-slate-600">
-              Dados atualizados diretamente do nosso sistema oficial. Consulte as contribuições registradas, verifique códigos de rifas e envie contestação caso identifique alguma inconsistência.
-            </p>
-          </div>
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        <div className="mx-auto max-w-3xl text-center">
+          <Badge variant="outline" className="mb-6 inline-flex items-center gap-2 border-slate-200 bg-white text-slate-700">
+            <ShieldCheck className="h-4 w-4" /> Portal da Transparência
+          </Badge>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+            Acompanhe os resultados da campanha em tempo real
+          </h1>
+          <p className="mt-4 text-base text-slate-600">
+            Visualize doações, monitore códigos de rifas e envie solicitações de revisão em um painel pensado para ser simples e direto.
+          </p>
+        </div>
 
-          {isLoading ? (
-            <div className="mt-16 flex justify-center">
-              <div className="flex items-center gap-3 rounded-full border border-primary/20 bg-white/80 px-6 py-3 shadow-sm backdrop-blur">
-                <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                <span className="text-sm font-medium text-primary">Carregando informações oficiais...</span>
-              </div>
+        {isLoading ? (
+          <div className="mt-16 flex justify-center">
+            <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-6 py-3 shadow-sm">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="text-sm font-medium text-slate-700">Carregando informações oficiais...</span>
             </div>
-          ) : (
-            <div className="mt-12 space-y-12">
-              <section>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <Card className="group overflow-hidden border-none bg-white/80 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-slate-600">Doações registradas</CardTitle>
-                      <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-3xl font-bold text-slate-900">{formatNumber(donations.length)}</p>
-                      <p className="text-xs text-slate-500">Total consolidado de contribuições lançadas</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="group overflow-hidden border-none bg-white/80 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-slate-600">Itens contabilizados</CardTitle>
-                      <Search className="h-5 w-5 text-sky-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-3xl font-bold text-slate-900">{formatNumber(totalItems)}</p>
-                      <p className="text-xs text-slate-500">Soma de itens registrados em todas as doações</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="group overflow-hidden border-none bg-white/80 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-slate-600">Estimativa em kg</CardTitle>
-                      <Scale className="h-5 w-5 text-indigo-500" />
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-3xl font-bold text-slate-900">{formatNumber(estimatedWeight, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</p>
-                      <p className="text-xs text-slate-500">Conversão estimada considerando unidades e pesos médios</p>
-                    </CardContent>
-                  </Card>
-                  <Card className="group overflow-hidden border-none bg-white/80 shadow-sm backdrop-blur transition hover:-translate-y-1 hover:shadow-lg">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-slate-600">Meta mensal</CardTitle>
-                      <Target className="h-5 w-5 text-rose-500" />
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-3xl font-bold text-slate-900">{formatNumber(goalProgress, {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        })}%</p>
-                        <span className="text-xs text-slate-500">de {goalValue ? `${formatNumber(goalValue)} itens` : "meta em configuração"}</span>
-                      </div>
-                      <Progress value={goalProgress} className="h-2" />
-                      {goalValue > 0 && (
-                        <p className="text-xs text-slate-500">
-                          Faltam aproximadamente <span className="font-semibold text-slate-700">{formatNumber(remainingGoal)}</span> itens para alcançar a meta do mês.
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </section>
+          </div>
+        ) : (
+          <div className="mt-12 space-y-12">
+            <section>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card className="border border-slate-200 bg-white shadow-none transition hover:border-slate-300">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-slate-600">Doações registradas</CardTitle>
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(donations.length)}</p>
+                    <p className="text-xs text-slate-500">Total consolidado de contribuições lançadas</p>
+                  </CardContent>
+                </Card>
+                <Card className="border border-slate-200 bg-white shadow-none transition hover:border-slate-300">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-slate-600">Itens contabilizados</CardTitle>
+                    <Search className="h-5 w-5 text-sky-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(totalItems)}</p>
+                    <p className="text-xs text-slate-500">Soma de itens registrados em todas as doações</p>
+                  </CardContent>
+                </Card>
+                <Card className="border border-slate-200 bg-white shadow-none transition hover:border-slate-300">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-slate-600">Estimativa em kg</CardTitle>
+                    <Scale className="h-5 w-5 text-indigo-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(estimatedWeight, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</p>
+                    <p className="text-xs text-slate-500">Conversão estimada considerando unidades e pesos médios</p>
+                  </CardContent>
+                </Card>
+                <Card className="border border-slate-200 bg-white shadow-none transition hover:border-slate-300">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-slate-600">Meta mensal</CardTitle>
+                    <Target className="h-5 w-5 text-rose-500" />
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-semibold text-slate-900">{formatNumber(goalProgress, {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}%</p>
+                      <span className="text-xs text-slate-500">de {goalValue ? `${formatNumber(goalValue)} itens` : "meta em configuração"}</span>
+                    </div>
+                    <Progress value={goalProgress} className="h-2" />
+                    {goalValue > 0 && (
+                      <p className="text-xs text-slate-500">
+                        Restam <span className="font-medium text-slate-700">{formatNumber(remainingGoal)}</span> itens para alcançar a meta do mês.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
 
               <section className="grid gap-6 lg:grid-cols-5">
-                <Card className="lg:col-span-3 border-none bg-white/80 shadow-sm backdrop-blur">
+                <Card className="lg:col-span-3 border border-slate-200 bg-white shadow-none">
                   <CardHeader>
                     <CardTitle>Como encontrar seu código</CardTitle>
                     <CardDescription>
-                      Utilize os comprovantes impressos ou digitais fornecidos ao entregar sua doação. Cada bilhete possui um código único.
+                      Consulte os comprovantes impressos ou digitais para localizar rapidamente o código do seu bilhete.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 text-sm text-slate-600">
-                    <div className="rounded-lg border border-slate-100 bg-white/70 p-4">
-                      <p className="font-semibold text-slate-700">Localização do código</p>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <p className="font-medium text-slate-700">Localização do código</p>
                       <p className="mt-2 text-slate-600">
-                        O código da rifa fica destacado na parte superior direita do bilhete. Em comprovantes digitais, ele aparece após o texto “Código da rifa”.
+                        O código da rifa fica destacado na parte superior direita do bilhete. Em comprovantes digitais, ele aparece logo após o texto “Código da rifa”.
                       </p>
                     </div>
-                    <div className="rounded-lg border border-slate-100 bg-white/70 p-4">
-                      <p className="font-semibold text-slate-700">Prazos para contestação</p>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <p className="font-medium text-slate-700">Prazos para contestação</p>
                       <p className="mt-2 text-slate-600">
-                        Solicitações de revisão podem ser enviadas em até 7 dias após a divulgação parcial dos resultados ou até 48 horas antes do sorteio oficial.
+                        Envie solicitações de revisão em até 7 dias após a divulgação parcial dos resultados ou até 48 horas antes do sorteio oficial.
                       </p>
                     </div>
-                    <div className="rounded-lg border border-slate-100 bg-white/70 p-4">
-                      <p className="font-semibold text-slate-700">Contato da coordenação</p>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <p className="font-medium text-slate-700">Contato da coordenação</p>
                       <p className="mt-2 text-slate-600">
-                        Precisa de suporte imediato? Fale com a coordenação pelo e-mail <Link href="mailto:coordenacao@christmaster.com.br" className="font-medium text-primary hover:underline">coordenacao@christmaster.com.br</Link> ou WhatsApp (81) 99999-0000.
+                        Em caso de dúvidas, escreva para <Link href="mailto:coordenacao@christmaster.com.br" className="font-medium text-primary hover:underline">coordenacao@christmaster.com.br</Link> ou envie mensagem para (81) 99999-0000.
                       </p>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="lg:col-span-2 border-none bg-white/80 shadow-sm backdrop-blur">
+                <Card className="lg:col-span-2 border border-slate-200 bg-white shadow-none">
                   <CardHeader>
                     <CardTitle>Distribuição por turma</CardTitle>
-                    <CardDescription>Volume de itens contabilizados nas turmas com maior participação</CardDescription>
+                    <CardDescription>Turmas com maior volume de itens registrados</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {donationsByClassData.length > 0 ? (
@@ -445,11 +443,11 @@ export default function TransparencyPage() {
                 </Card>
               </section>
 
-              <section className="space-y-4">
+              <section className="space-y-6">
                 <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-900">Tabela pública de doações</h2>
-                    <p className="text-sm text-slate-600">Consulta simplificada das entradas registradas. Informações pessoais foram anonimizadas.</p>
+                    <h2 className="text-xl font-semibold text-slate-900">Doações registradas</h2>
+                    <p className="text-sm text-slate-600">Informações pessoais são anonimizadas para preservar a privacidade.</p>
                   </div>
                   <div className="flex flex-col gap-3 md:flex-row md:items-center">
                     <div className="relative md:w-64">
@@ -458,11 +456,11 @@ export default function TransparencyPage() {
                         placeholder="Buscar por participante"
                         value={searchTerm}
                         onChange={(event) => setSearchTerm(event.target.value)}
-                        className="pl-9"
+                        className="rounded-full border-slate-200 bg-white pl-9"
                       />
                     </div>
                     <Select value={selectedClass} onValueChange={setSelectedClass}>
-                      <SelectTrigger className="md:w-48">
+                      <SelectTrigger className="rounded-full border-slate-200 md:w-48">
                         <SelectValue placeholder="Filtrar por turma" />
                       </SelectTrigger>
                       <SelectContent>
@@ -477,9 +475,9 @@ export default function TransparencyPage() {
                   </div>
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-slate-100 bg-white/80 shadow-sm backdrop-blur">
+                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                   <Table>
-                    <TableHeader className="bg-slate-50/70">
+                    <TableHeader className="bg-slate-50">
                       <TableRow>
                         <TableHead>Turma/Série</TableHead>
                         <TableHead>Participante</TableHead>
@@ -497,7 +495,7 @@ export default function TransparencyPage() {
                         </TableRow>
                       ) : (
                         filteredDonations.map((donation) => (
-                          <TableRow key={donation.id} className="hover:bg-primary/5">
+                          <TableRow key={donation.id} className="hover:bg-slate-50">
                             <TableCell className="font-medium text-slate-700">{donation.className}</TableCell>
                             <TableCell className="text-slate-700">{donation.displayName}</TableCell>
                             <TableCell className="text-slate-600">{donation.productSummary || "Itens diversos"}</TableCell>
@@ -512,7 +510,7 @@ export default function TransparencyPage() {
               </section>
 
               <section className="grid gap-6 lg:grid-cols-2">
-                <Card className="border-none bg-white/80 shadow-sm backdrop-blur">
+                <Card className="border border-slate-200 bg-white shadow-none">
                   <CardHeader>
                     <CardTitle>Consulta de rifas e bilhetes</CardTitle>
                     <CardDescription>Informe o código do bilhete para verificar o status e a turma vinculada.</CardDescription>
@@ -523,6 +521,7 @@ export default function TransparencyPage() {
                         placeholder="Digite o código da rifa"
                         value={ticketQuery}
                         onChange={(event) => setTicketQuery(event.target.value)}
+                        className="rounded-full border-slate-200"
                       />
                       <Button variant="secondary" className="gap-2" onClick={() => setTicketQuery(ticketQuery.trim())}>
                         Pesquisar
@@ -534,7 +533,10 @@ export default function TransparencyPage() {
                         <p className="text-sm text-slate-500">Digite um código válido para visualizar o resultado.</p>
                       ) : filteredTicketRows.length > 0 ? (
                         filteredTicketRows.map((ticket) => (
-                          <div key={ticket.id} className="flex flex-col gap-2 rounded-lg border border-slate-100 bg-white/70 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                          <div
+                            key={ticket.id}
+                            className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+                          >
                             <div>
                               <p className="text-sm font-semibold text-slate-700">Código {ticket.code}</p>
                               <p className="text-xs text-slate-500">Turma associada: {ticket.className}</p>
@@ -548,7 +550,7 @@ export default function TransparencyPage() {
                           </div>
                         ))
                       ) : (
-                        <p className="rounded-lg border border-amber-100 bg-amber-50/70 p-4 text-sm text-amber-700">
+                        <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
                           Nenhum bilhete foi localizado com esse código. Revise os caracteres ou entre em contato com a coordenação.
                         </p>
                       )}
@@ -556,7 +558,7 @@ export default function TransparencyPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-none bg-white/80 shadow-sm backdrop-blur">
+                <Card className="border border-slate-200 bg-white shadow-none">
                   <CardHeader>
                     <CardTitle>Histórico resumido</CardTitle>
                     <CardDescription>Últimos registros de auditoria não sensíveis do sistema.</CardDescription>
@@ -567,7 +569,7 @@ export default function TransparencyPage() {
                     ) : (
                       <ul className="space-y-3">
                         {publicAuditLogs.map((log) => (
-                          <li key={log.id} className="relative rounded-lg border border-slate-100 bg-white/70 p-4 shadow-sm">
+                          <li key={log.id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="text-sm font-semibold text-slate-700">{log.action}</p>
@@ -584,7 +586,7 @@ export default function TransparencyPage() {
               </section>
 
               <section>
-                <Card className="border-none bg-white/85 shadow-sm backdrop-blur">
+                <Card className="border border-slate-200 bg-white shadow-none">
                   <CardHeader>
                     <CardTitle>Formulário público de contestação</CardTitle>
                     <CardDescription>Encontrou algum dado incorreto? Envie sua contestação e retornaremos com a atualização necessária.</CardDescription>
@@ -593,18 +595,33 @@ export default function TransparencyPage() {
                     <form className="grid gap-6 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
                       <div className="space-y-2">
                         <Label htmlFor="nome">Nome</Label>
-                        <Input id="nome" placeholder="Como deseja ser identificado" {...register("nome", { required: "Informe seu nome" })} />
+                        <Input
+                          id="nome"
+                          placeholder="Como deseja ser identificado"
+                          className="border-slate-200"
+                          {...register("nome", { required: "Informe seu nome" })}
+                        />
                         {errors.nome && <p className="text-xs text-destructive">{errors.nome.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="contato">Contato</Label>
-                        <Input id="contato" placeholder="WhatsApp ou e-mail" {...register("contato", { required: "Informe um contato para retorno" })} />
+                        <Input
+                          id="contato"
+                          placeholder="WhatsApp ou e-mail"
+                          className="border-slate-200"
+                          {...register("contato", { required: "Informe um contato para retorno" })}
+                        />
                         {errors.contato && <p className="text-xs text-destructive">{errors.contato.message}</p>}
                       </div>
                       <div className="space-y-2 md:col-span-2 md:grid md:grid-cols-2 md:gap-6">
                         <div className="space-y-2">
                           <Label htmlFor="codigoRifa">Código da rifa/bilhete</Label>
-                          <Input id="codigoRifa" placeholder="Ex: CM-1234" {...register("codigoRifa", { required: "Informe o código da rifa" })} />
+                          <Input
+                            id="codigoRifa"
+                            placeholder="Ex: CM-1234"
+                            className="border-slate-200"
+                            {...register("codigoRifa", { required: "Informe o código da rifa" })}
+                          />
                           {errors.codigoRifa && <p className="text-xs text-destructive">{errors.codigoRifa.message}</p>}
                         </div>
                         <div className="hidden md:block" />
@@ -614,6 +631,7 @@ export default function TransparencyPage() {
                         <Textarea
                           id="descricao"
                           placeholder="Explique o motivo da contestação com o máximo de detalhes possível"
+                          className="min-h-[140px] border-slate-200"
                           {...register("descricao", { required: "Descreva a situação para podermos ajudar" })}
                         />
                         {errors.descricao && <p className="text-xs text-destructive">{errors.descricao.message}</p>}
@@ -640,7 +658,6 @@ export default function TransparencyPage() {
               </section>
             </div>
           )}
-        </div>
       </div>
     </main>
   );
