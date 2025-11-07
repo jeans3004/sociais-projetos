@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -99,6 +100,14 @@ export default function LoginPage() {
             Apenas administradores autorizados podem acessar o sistema
           </p>
         </CardContent>
+        <div className="px-6 pb-6 text-center">
+          <Link
+            href="/transparencia"
+            className="text-sm font-medium text-primary transition hover:text-primary/80 hover:underline"
+          >
+            Acessar o Portal da Transparência
+          </Link>
+        </div>
       </Card>
     </div>
   );

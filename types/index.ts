@@ -88,6 +88,38 @@ export interface DonationFormData {
   notes?: string;
 }
 
+export interface Ticket {
+  id: string;
+  code: string;
+  status: string;
+  studentId?: string;
+  studentName?: string;
+  participantName?: string;
+  studentClass?: string;
+  assignedAt?: Timestamp;
+  updatedAt?: Timestamp;
+  [key: string]: any; // Campos adicionais opcionais provenientes do Firestore
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  entity: string;
+  entityId?: string;
+  timestamp: Timestamp;
+  performedBy?: string;
+  performedByName?: string;
+  details?: string;
+  sensitive?: boolean;
+}
+
+export interface ContestacaoFormData {
+  nome: string;
+  contato: string;
+  codigoRifa: string;
+  descricao: string;
+}
+
 // User (Admin) types
 export interface User {
   id: string;
