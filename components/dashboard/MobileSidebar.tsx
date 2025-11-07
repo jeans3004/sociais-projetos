@@ -13,6 +13,8 @@ import {
   LogOut,
   UserCog,
   Menu,
+  Ticket,
+  LifeBuoy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/firebase/auth";
@@ -47,6 +49,12 @@ const menuItems = [
     roles: ["admin", "user"],
   },
   {
+    title: "Rifa",
+    href: "/dashboard/rifa",
+    icon: Ticket,
+    roles: ["admin", "user"],
+  },
+  {
     title: "Relatórios",
     href: "/dashboard/relatorios",
     icon: FileText,
@@ -63,6 +71,12 @@ const menuItems = [
     href: "/dashboard/configuracoes",
     icon: Settings,
     roles: ["admin"],
+  },
+  {
+    title: "Ajuda",
+    href: "/dashboard/ajuda",
+    icon: LifeBuoy,
+    roles: ["admin", "user"],
   },
 ];
 
