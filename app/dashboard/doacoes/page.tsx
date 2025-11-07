@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -23,23 +22,25 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DonationForm } from "@/components/forms/DonationForm";
 import {
   getDonations,
   createDonation,
   deleteDonation,
+  updateDonation,
 } from "@/lib/firebase/donations";
 import { getStudents } from "@/lib/firebase/students";
 import { Donation, DonationFormData, Student } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-
-const paymentMethodLabels = {
-  cash: "Dinheiro",
-  pix: "PIX",
-  card: "Cartão",
-};
 
 export default function DoacoesPage() {
   const [donations, setDonations] = useState<Donation[]>([]);
@@ -49,6 +50,9 @@ export default function DoacoesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedDonation, setSelectedDonation] = useState<Donation | null>(null);
+  const [editingDonation, setEditingDonation] = useState<Donation | null>(null);
   const [donationToDelete, setDonationToDelete] = useState<Donation | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -116,6 +120,28 @@ export default function DoacoesPage() {
     }
   };
 
+  const handleUpdateDonation = async (id: string, data: DonationFormData) => {
+    if (!user) return;
+
+    try {
+      await updateDonation(id, data);
+      await loadData();
+      setEditingDonation(null);
+      toast({
+        title: "Doação atualizada",
+        description: "As informações da doação foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      console.error("Error updating donation:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar doação",
+        description: "Não foi possível atualizar a doação.",
+      });
+      throw error;
+    }
+  };
+
   const handleDeleteDonation = async () => {
     if (!donationToDelete) return;
 
@@ -143,6 +169,18 @@ export default function DoacoesPage() {
     setDeleteDialogOpen(true);
   };
 
+  const openDonationDetails = (donation: Donation) => {
+    setSelectedDonation(donation);
+    setDetailsOpen(true);
+  };
+
+  const closeDonationDetails = (open: boolean) => {
+    setDetailsOpen(open);
+    if (!open) {
+      setSelectedDonation(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -160,7 +198,12 @@ export default function DoacoesPage() {
             Registre e gerencie as doações recebidas
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button
+          onClick={() => {
+            setEditingDonation(null);
+            setFormOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Nova Doação
         </Button>
@@ -222,13 +265,35 @@ export default function DoacoesPage() {
                     {donation.registeredByName}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openDeleteDialog(donation)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setEditingDonation(donation);
+                          setFormOpen(true);
+                        }}
+                        aria-label="Editar doação"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openDonationDetails(donation)}
+                        aria-label="Ver detalhes da doação"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openDeleteDialog(donation)}
+                        aria-label="Excluir doação"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -251,10 +316,100 @@ export default function DoacoesPage() {
       </div>
 
       <DonationForm
+        donation={editingDonation ?? undefined}
         open={formOpen}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleCreateDonation}
+        onClose={() => {
+          setFormOpen(false);
+          setEditingDonation(null);
+        }}
+        onSubmit={async (data) => {
+          if (editingDonation) {
+            await handleUpdateDonation(editingDonation.id, data);
+          } else {
+            await handleCreateDonation(data);
+          }
+        }}
       />
+
+      <Dialog open={detailsOpen} onOpenChange={closeDonationDetails}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Detalhes da doação</DialogTitle>
+            <DialogDescription>
+              Visualize as informações registradas para esta doação.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedDonation && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Quem doou</p>
+                <p className="text-base font-semibold">
+                  {selectedDonation.studentName || "Aluno não informado"}
+                </p>
+                {selectedDonation.studentClass && (
+                  <p className="text-sm text-muted-foreground">
+                    Turma: {selectedDonation.studentClass}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Quando doou</p>
+                <p>{formatDate(selectedDonation.date.toDate())}</p>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">O que doou</p>
+                <ul className="space-y-2">
+                  {selectedDonation.products.map((product, index) => (
+                    <li
+                      key={`${product.product}-${index}`}
+                      className="flex items-center justify-between rounded-md border p-2"
+                    >
+                      <span className="font-medium">{product.product}</span>
+                      <span className="text-sm text-muted-foreground">
+                        {product.quantity} {product.unit}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Quanto doou</p>
+                <p className="font-semibold">
+                  {selectedDonation.products.reduce(
+                    (sum, product) => sum + product.quantity,
+                    0
+                  )}{" "}
+                  itens
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Observações</p>
+                {selectedDonation.notes ? (
+                  <p>{selectedDonation.notes}</p>
+                ) : (
+                  <p className="text-sm italic text-muted-foreground">
+                    Nenhuma observação registrada.
+                  </p>
+                )}
+              </div>
+
+              {selectedDonation.registeredByName && (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Registrado por
+                  </p>
+                  <p>{selectedDonation.registeredByName}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

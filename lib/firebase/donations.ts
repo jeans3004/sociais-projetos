@@ -122,17 +122,71 @@ export async function createDonation(
  */
 export async function updateDonation(
   id: string,
-  data: Partial<DonationFormData>
+  data: DonationFormData
 ): Promise<void> {
   try {
     const donationRef = doc(db, COLLECTION_NAME, id);
+    const existingDonation = await getDonation(id);
+
+    if (!existingDonation) {
+      throw new Error("Donation not found");
+    }
+
     const updateData: any = { ...data };
 
     if (data.date) {
       updateData.date = Timestamp.fromDate(data.date);
     }
 
-    await updateDoc(donationRef, updateData);
+    let newStudentId = data.studentId;
+    let newStudentName = existingDonation.studentName;
+    let newStudentClass = existingDonation.studentClass;
+
+    if (data.studentId !== existingDonation.studentId) {
+      const student = await getStudent(data.studentId);
+      if (!student) {
+        throw new Error("Student not found");
+      }
+      newStudentName = student.fullName;
+      newStudentClass = student.class;
+      updateData.studentName = newStudentName;
+      updateData.studentClass = newStudentClass;
+    }
+
+    if (data.products) {
+      const oldTotal = existingDonation.products.reduce(
+        (sum, product) => sum + product.quantity,
+        0
+      );
+      const newTotal = data.products.reduce(
+        (sum, product) => sum + product.quantity,
+        0
+      );
+
+      if (newStudentId !== existingDonation.studentId) {
+        await updateStudentTotalDonations(existingDonation.studentId, -oldTotal);
+        await updateStudentTotalDonations(newStudentId, newTotal);
+      } else {
+        const difference = newTotal - oldTotal;
+        if (difference !== 0) {
+          await updateStudentTotalDonations(existingDonation.studentId, difference);
+        }
+      }
+    } else if (data.studentId !== existingDonation.studentId) {
+      const totalItems = existingDonation.products.reduce(
+        (sum, product) => sum + product.quantity,
+        0
+      );
+      await updateStudentTotalDonations(existingDonation.studentId, -totalItems);
+      await updateStudentTotalDonations(newStudentId, totalItems);
+    }
+
+    await updateDoc(donationRef, {
+      ...updateData,
+      studentId: newStudentId,
+      studentName: newStudentName,
+      studentClass: newStudentClass,
+    });
   } catch (error) {
     console.error("Error updating donation:", error);
     throw error;
