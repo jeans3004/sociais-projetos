@@ -441,8 +441,7 @@ export default function TransparencyPage() {
   const hasGoalConfigured = goalValue > 0;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100">
-      <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[360px] max-w-5xl rounded-full bg-gradient-to-br from-sky-200/50 via-indigo-100/40 to-transparent blur-3xl" />
+    <main className="relative min-h-screen overflow-hidden bg-slate-50">
       <div className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         <div className="mx-auto max-w-3xl text-center">
           <Badge variant="secondary" className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/80 px-4 py-1.5 text-slate-700 shadow-sm backdrop-blur">
@@ -467,8 +466,7 @@ export default function TransparencyPage() {
           <div className="mt-12 space-y-12">
             <section>
               <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition">
-                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-100/70 via-white to-transparent opacity-0 transition group-hover:opacity-100" />
+                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition hover:bg-white">
                   <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
                     <div>
                       <p className="text-xs uppercase tracking-widest text-slate-500">Visão geral</p>
@@ -483,8 +481,7 @@ export default function TransparencyPage() {
                     <p className="text-sm text-slate-500">Total consolidado de registros confirmados</p>
                   </CardContent>
                 </Card>
-                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition">
-                  <div className="absolute inset-0 bg-gradient-to-br from-sky-100/70 via-white to-transparent opacity-0 transition group-hover:opacity-100" />
+                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition hover:bg-white">
                   <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
                     <div>
                       <p className="text-xs uppercase tracking-widest text-slate-500">Impacto</p>
@@ -499,8 +496,7 @@ export default function TransparencyPage() {
                     <p className="text-sm text-slate-500">Soma total de itens entregues nas doações</p>
                   </CardContent>
                 </Card>
-                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition">
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-100/70 via-white to-transparent opacity-0 transition group-hover:opacity-100" />
+                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition hover:bg-white">
                   <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
                     <div>
                       <p className="text-xs uppercase tracking-widest text-slate-500">Estimativa</p>
@@ -517,8 +513,7 @@ export default function TransparencyPage() {
                     <p className="text-sm text-slate-500">Conversão aproximada considerando pesos médios dos itens</p>
                   </CardContent>
                 </Card>
-                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition">
-                  <div className="absolute inset-0 bg-gradient-to-br from-amber-100/70 via-white to-transparent opacity-0 transition group-hover:opacity-100" />
+                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition hover:bg-white">
                   <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
                     <div>
                       <p className="text-xs uppercase tracking-widest text-slate-500">Engajamento</p>
@@ -538,7 +533,6 @@ export default function TransparencyPage() {
 
             <section className="grid gap-6 xl:grid-cols-5">
               <Card className="relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-3">
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-100 via-white to-transparent opacity-60" />
                 <CardHeader className="relative z-10">
                   <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
                     <Sparkles className="h-5 w-5 text-primary" />

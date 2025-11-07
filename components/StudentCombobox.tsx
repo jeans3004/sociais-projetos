@@ -94,7 +94,7 @@ export function StudentCombobox({
                     setOpen(false);
                     setSearch("");
                   }}
-                  className="cursor-pointer hover:bg-accent aria-selected:bg-accent"
+                  className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3"
                 >
                   <Check
                     className={cn(
@@ -102,7 +102,7 @@ export function StudentCombobox({
                       value === student.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex flex-col flex-1 min-w-0 pointer-events-none">
+                  <div className="flex flex-col flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium truncate">
                         {student.fullName}

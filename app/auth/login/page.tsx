@@ -49,10 +49,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-4 text-center">
-          <div className="mx-auto w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-primary to-blue-600 rounded-2xl flex items-center justify-center text-white text-2xl md:text-3xl font-bold">
+          <div className="mx-auto w-16 h-16 md:w-20 md:h-20 bg-primary rounded-2xl flex items-center justify-center text-white text-2xl md:text-3xl font-bold">
             CM
           </div>
           <CardTitle className="text-xl md:text-2xl font-bold">Sistema de Doações</CardTitle>
