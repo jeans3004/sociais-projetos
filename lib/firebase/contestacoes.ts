@@ -10,7 +10,7 @@ export async function createContestacao(data: ContestacaoFormData) {
     const payload = {
       nome: data.nome,
       contato: data.contato,
-      codigoRifa: data.codigoRifa,
+      referencia: data.referencia ?? null,
       descricao: data.descricao,
       createdAt: Timestamp.now(),
     };
