@@ -63,11 +63,7 @@ export default function AlunosPage() {
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadStudents();
-  }, []);
-
-  const loadStudents = async () => {
+  const loadStudents = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getStudents();
@@ -82,7 +78,11 @@ export default function AlunosPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadStudents();
+  }, [loadStudents]);
 
   // Optimized filtering with useMemo - only recalculates when dependencies change
   const filteredStudents = useMemo(() => {

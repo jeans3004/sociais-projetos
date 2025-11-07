@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Trash2, Shield, User as UserIcon, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -65,15 +65,7 @@ export default function UsuariosPage() {
     }
   }, [currentUser, router, toast]);
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  useEffect(() => {
-    filterUsers();
-  }, [searchTerm, users]);
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getUsers();
@@ -89,9 +81,9 @@ export default function UsuariosPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const filterUsers = () => {
+  const filterUsers = useCallback(() => {
     if (!searchTerm) {
       setFilteredUsers(users);
       return;
@@ -103,7 +95,15 @@ export default function UsuariosPage() {
         user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredUsers(filtered);
-  };
+  }, [searchTerm, users]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  useEffect(() => {
+    filterUsers();
+  }, [filterUsers]);
 
   const handleCreateUser = async (data: UserFormData) => {
     try {

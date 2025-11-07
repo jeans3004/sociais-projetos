@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,15 +53,7 @@ export default function DoacoesPage() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    filterDonations();
-  }, [searchTerm, donations]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [donationsData, studentsData] = await Promise.all([
@@ -81,9 +73,9 @@ export default function DoacoesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const filterDonations = () => {
+  const filterDonations = useCallback(() => {
     if (!searchTerm) {
       setFilteredDonations(donations);
       return;
@@ -93,7 +85,15 @@ export default function DoacoesPage() {
       donation.studentName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredDonations(filtered);
-  };
+  }, [searchTerm, donations]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    filterDonations();
+  }, [filterDonations]);
 
   const handleCreateDonation = async (data: DonationFormData) => {
     if (!user) return;

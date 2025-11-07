@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { RoleGuard } from "@/components/RoleGuard";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,11 +33,7 @@ export default function ConfiguracoesPage() {
     resolver: zodResolver(settingsSchema),
   });
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getOrCreateSettings();
@@ -58,7 +54,11 @@ export default function ConfiguracoesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [reset, toast]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const onSubmit = async (data: SettingsFormData) => {
     if (!user) return;

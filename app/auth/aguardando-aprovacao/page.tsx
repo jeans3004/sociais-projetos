@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,19 +14,7 @@ export default function AguardandoAprovacaoPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (!loading) {
-      if (!user) {
-        router.push("/auth/login");
-      } else if (user.status === "approved") {
-        router.push("/dashboard/dashboard");
-      } else if (user.status === "rejected") {
-        handleSignOut();
-      }
-    }
-  }, [user, loading, router]);
-
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     try {
       await signOut();
       toast({
@@ -41,7 +29,19 @@ export default function AguardandoAprovacaoPage() {
         description: "Não foi possível fazer logout.",
       });
     }
-  };
+  }, [router, toast]);
+
+  useEffect(() => {
+    if (!loading) {
+      if (!user) {
+        router.push("/auth/login");
+      } else if (user.status === "approved") {
+        router.push("/dashboard/dashboard");
+      } else if (user.status === "rejected") {
+        handleSignOut();
+      }
+    }
+  }, [user, loading, router, handleSignOut]);
 
   if (loading) {
     return (
