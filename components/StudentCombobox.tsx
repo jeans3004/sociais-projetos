@@ -47,6 +47,7 @@ export function StudentCombobox({
       (student) =>
         student.fullName.toLowerCase().includes(searchLower) ||
         student.class.toLowerCase().includes(searchLower) ||
+        formatGradeLabel(student.grade).toLowerCase().includes(searchLower) ||
         (student.registrationNumber &&
           student.registrationNumber.toLowerCase().includes(searchLower))
     );
@@ -78,7 +79,7 @@ export function StudentCombobox({
       <PopoverContent className="w-[400px] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Buscar aluno por nome, turma ou matrícula..."
+            placeholder="Buscar por nome, série, turma ou matrícula..."
             value={search}
             onValueChange={setSearch}
           />
