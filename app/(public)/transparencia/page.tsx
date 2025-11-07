@@ -16,10 +16,14 @@ import {
   ArrowRight,
   CheckCircle2,
   Loader2,
+  Package,
   Scale,
   Search,
   ShieldCheck,
+  Sparkles,
   Target,
+  Trophy,
+  Users2,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,11 +49,10 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useDonations } from "@/hooks/useDonations";
-import { useTickets } from "@/hooks/useTickets";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
 import { getOrCreateSettings } from "@/lib/firebase/settings";
 import { createContestacao } from "@/lib/firebase/contestacoes";
-import { ContestacaoFormData, Donation, Settings, Ticket } from "@/types";
+import { ContestacaoFormData, Donation, Settings } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { Timestamp } from "firebase/firestore";
 
@@ -63,11 +66,11 @@ interface PublicDonationRow {
   date: Date;
 }
 
-interface TicketRow {
-  id: string;
-  code: string;
-  status: string;
+interface ClassPerformanceRow {
   className: string;
+  totalQuantity: number;
+  donationCount: number;
+  donors: number;
 }
 
 const UNIT_TO_KG: Record<string, number> = {
@@ -106,13 +109,11 @@ const toDate = (value: Donation["date"]) => {
 
 export default function TransparencyPage() {
   const { donations, loading: donationsLoading } = useDonations();
-  const { tickets, loading: ticketsLoading } = useTickets();
   const { auditLogs, loading: auditLoading } = useAuditLogs(40);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
-  const [ticketQuery, setTicketQuery] = useState("");
   const { toast } = useToast();
 
   const {
@@ -124,7 +125,7 @@ export default function TransparencyPage() {
     defaultValues: {
       nome: "",
       contato: "",
-      codigoRifa: "",
+      referencia: "",
       descricao: "",
     },
   });
@@ -180,6 +181,40 @@ export default function TransparencyPage() {
     });
   }, [donations]);
 
+  const classPerformance = useMemo<ClassPerformanceRow[]>(() => {
+    const accumulator = new Map<string, { total: number; donationCount: number; donors: Set<string> }>();
+
+    donations.forEach((donation) => {
+      const className = donation.studentClass || "Não informado";
+      const donationTotal = donation.products.reduce((sum, product) => {
+        const quantity = typeof product.quantity === "number" ? product.quantity : Number(product.quantity) || 0;
+        return sum + quantity;
+      }, 0);
+
+      if (!accumulator.has(className)) {
+        accumulator.set(className, { total: 0, donationCount: 0, donors: new Set<string>() });
+      }
+
+      const entry = accumulator.get(className)!;
+      entry.total += donationTotal;
+      entry.donationCount += 1;
+
+      const donorKey = donation.studentId || donation.studentName || donation.id;
+      if (donorKey) {
+        entry.donors.add(donorKey);
+      }
+    });
+
+    return Array.from(accumulator.entries())
+      .map(([className, data]) => ({
+        className,
+        totalQuantity: data.total,
+        donationCount: data.donationCount,
+        donors: data.donors.size,
+      }))
+      .sort((a, b) => b.totalQuantity - a.totalQuantity);
+  }, [donations]);
+
   const totalItems = useMemo(() => {
     return donations.reduce((sum, donation) => {
       return (
@@ -205,19 +240,24 @@ export default function TransparencyPage() {
     }, 0);
   }, [donations]);
 
+  const uniqueDonors = useMemo(() => {
+    const donors = new Set<string>();
+    donations.forEach((donation) => {
+      const donorKey = donation.studentId || donation.studentName || donation.id;
+      if (donorKey) {
+        donors.add(donorKey);
+      }
+    });
+    return donors.size;
+  }, [donations]);
+
   const goalValue = settings?.monthlyGoal ?? 0;
   const goalProgress = goalValue > 0 ? Math.min(100, (totalItems / goalValue) * 100) : 0;
   const remainingGoal = goalValue > 0 ? Math.max(goalValue - totalItems, 0) : 0;
 
   const classOptions = useMemo(() => {
-    const classes = new Set<string>();
-    donationRows.forEach((row) => {
-      if (row.className) {
-        classes.add(row.className);
-      }
-    });
-    return Array.from(classes).sort((a, b) => a.localeCompare(b, "pt-BR"));
-  }, [donationRows]);
+    return classPerformance.map((entry) => entry.className).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [classPerformance]);
 
   const filteredDonations = useMemo(() => {
     return donationRows
@@ -230,46 +270,18 @@ export default function TransparencyPage() {
       .filter((row) => {
         if (selectedClass === "all") return true;
         return row.className === selectedClass;
+      })
+      .sort((a, b) => {
+        if (b.totalQuantity !== a.totalQuantity) {
+          return b.totalQuantity - a.totalQuantity;
+        }
+        return b.date.getTime() - a.date.getTime();
       });
   }, [donationRows, searchTerm, selectedClass]);
 
   const donationsByClassData = useMemo(() => {
-    const accumulator = new Map<string, number>();
-    donationRows.forEach((row) => {
-      const key = row.className || "Não informado";
-      accumulator.set(key, (accumulator.get(key) ?? 0) + row.totalQuantity);
-    });
-
-    return Array.from(accumulator.entries())
-      .map(([className, total]) => ({ className, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 8);
-  }, [donationRows]);
-
-  const ticketRows = useMemo<TicketRow[]>(() => {
-    return tickets.map((ticket) => {
-      const rawClass =
-        ticket.studentClass ||
-        (ticket as Ticket & { turma?: string; className?: string }).turma ||
-        (ticket as Ticket & { turma?: string; className?: string }).className ||
-        "Não informado";
-
-      return {
-        id: ticket.id,
-        code: ticket.code,
-        status: ticket.status,
-        className: rawClass,
-      };
-    });
-  }, [tickets]);
-
-  const filteredTicketRows = useMemo(() => {
-    if (!ticketQuery.trim()) return [];
-    const normalized = ticketQuery.trim().toLowerCase();
-    return ticketRows
-      .filter((row) => row.code?.toLowerCase().includes(normalized))
-      .slice(0, 10);
-  }, [ticketRows, ticketQuery]);
+    return classPerformance.slice(0, 7).map(({ className, totalQuantity }) => ({ className, total: totalQuantity }));
+  }, [classPerformance]);
 
   const publicAuditLogs = useMemo(() => {
     return auditLogs
@@ -289,12 +301,12 @@ export default function TransparencyPage() {
     try {
       await createContestacao(data);
       toast({
-        title: "Contestação enviada",
+        title: "Revisão enviada",
         description: "Recebemos a sua solicitação. A coordenação retornará em breve.",
       });
       reset();
     } catch (error) {
-      console.error("TransparencyPage:contestacao", error);
+      console.error("TransparencyPage:revisao", error);
       toast({
         variant: "destructive",
         title: "Não foi possível enviar",
@@ -303,264 +315,351 @@ export default function TransparencyPage() {
     }
   };
 
-  const isLoading = donationsLoading || ticketsLoading || auditLoading || settingsLoading;
+  const isLoading = donationsLoading || auditLoading || settingsLoading;
+  const engagedClasses = classPerformance.length;
+  const topClassTotal = classPerformance[0]?.totalQuantity ?? 0;
+  const hasGoalConfigured = goalValue > 0;
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+    <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      <div className="pointer-events-none absolute inset-x-0 top-0 mx-auto h-[360px] max-w-5xl rounded-full bg-gradient-to-br from-sky-200/50 via-indigo-100/40 to-transparent blur-3xl" />
+      <div className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         <div className="mx-auto max-w-3xl text-center">
-          <Badge variant="outline" className="mb-6 inline-flex items-center gap-2 border-slate-200 bg-white text-slate-700">
-            <ShieldCheck className="h-4 w-4" /> Portal da Transparência
+          <Badge variant="secondary" className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/80 px-4 py-1.5 text-slate-700 shadow-sm backdrop-blur">
+            <ShieldCheck className="h-4 w-4 text-emerald-500" /> Portal da Transparência
           </Badge>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-            Acompanhe os resultados da campanha em tempo real
+            Transparência total das doações em tempo real
           </h1>
-          <p className="mt-4 text-base text-slate-600">
-            Visualize doações, monitore códigos de rifas e envie solicitações de revisão em um painel pensado para ser simples e direto.
+          <p className="mt-4 text-base leading-relaxed text-slate-600">
+            Acompanhe a evolução da campanha, visualize o desempenho de cada turma e saiba exatamente como as contribuições estão impulsionando nossos resultados.
           </p>
         </div>
 
         {isLoading ? (
           <div className="mt-16 flex justify-center">
-            <div className="flex items-center gap-3 rounded-full border border-slate-200 bg-white px-6 py-3 shadow-sm">
+            <div className="flex items-center gap-3 rounded-full border border-slate-200/70 bg-white/80 px-6 py-3 shadow-lg shadow-slate-200/60 backdrop-blur">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              <span className="text-sm font-medium text-slate-700">Carregando informações oficiais...</span>
+              <span className="text-sm font-medium text-slate-700">Atualizando indicadores oficiais...</span>
             </div>
           </div>
         ) : (
           <div className="mt-12 space-y-12">
             <section>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card className="border border-slate-200 bg-white shadow-none transition hover:border-slate-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Doações registradas</CardTitle>
-                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(donations.length)}</p>
-                    <p className="text-xs text-slate-500">Total consolidado de contribuições lançadas</p>
-                  </CardContent>
-                </Card>
-                <Card className="border border-slate-200 bg-white shadow-none transition hover:border-slate-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Itens contabilizados</CardTitle>
-                    <Search className="h-5 w-5 text-sky-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(totalItems)}</p>
-                    <p className="text-xs text-slate-500">Soma de itens registrados em todas as doações</p>
-                  </CardContent>
-                </Card>
-                <Card className="border border-slate-200 bg-white shadow-none transition hover:border-slate-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Estimativa em kg</CardTitle>
-                    <Scale className="h-5 w-5 text-indigo-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(estimatedWeight, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg</p>
-                    <p className="text-xs text-slate-500">Conversão estimada considerando unidades e pesos médios</p>
-                  </CardContent>
-                </Card>
-                <Card className="border border-slate-200 bg-white shadow-none transition hover:border-slate-300">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-slate-600">Meta mensal</CardTitle>
-                    <Target className="h-5 w-5 text-rose-500" />
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-baseline gap-2">
-                      <p className="text-3xl font-semibold text-slate-900">{formatNumber(goalProgress, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}%</p>
-                      <span className="text-xs text-slate-500">de {goalValue ? `${formatNumber(goalValue)} itens` : "meta em configuração"}</span>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition">
+                  <div className="absolute inset-0 bg-gradient-to-br from-emerald-100/70 via-white to-transparent opacity-0 transition group-hover:opacity-100" />
+                  <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-widest text-slate-500">Visão geral</p>
+                      <CardTitle className="text-sm font-medium text-slate-600">Doações registradas</CardTitle>
                     </div>
-                    <Progress value={goalProgress} className="h-2" />
-                    {goalValue > 0 && (
-                      <p className="text-xs text-slate-500">
-                        Restam <span className="font-medium text-slate-700">{formatNumber(remainingGoal)}</span> itens para alcançar a meta do mês.
-                      </p>
-                    )}
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
+                      <CheckCircle2 className="h-5 w-5" />
+                    </span>
+                  </CardHeader>
+                  <CardContent className="relative z-10 space-y-1">
+                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(donations.length)}</p>
+                    <p className="text-sm text-slate-500">Total consolidado de registros confirmados</p>
+                  </CardContent>
+                </Card>
+                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition">
+                  <div className="absolute inset-0 bg-gradient-to-br from-sky-100/70 via-white to-transparent opacity-0 transition group-hover:opacity-100" />
+                  <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-widest text-slate-500">Impacto</p>
+                      <CardTitle className="text-sm font-medium text-slate-600">Itens contabilizados</CardTitle>
+                    </div>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-500/10 text-sky-500">
+                      <Package className="h-5 w-5" />
+                    </span>
+                  </CardHeader>
+                  <CardContent className="relative z-10 space-y-1">
+                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(totalItems)}</p>
+                    <p className="text-sm text-slate-500">Soma total de itens entregues nas doações</p>
+                  </CardContent>
+                </Card>
+                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition">
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-100/70 via-white to-transparent opacity-0 transition group-hover:opacity-100" />
+                  <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-widest text-slate-500">Estimativa</p>
+                      <CardTitle className="text-sm font-medium text-slate-600">Equivalente em kg</CardTitle>
+                    </div>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-500">
+                      <Scale className="h-5 w-5" />
+                    </span>
+                  </CardHeader>
+                  <CardContent className="relative z-10 space-y-1">
+                    <p className="text-3xl font-semibold text-slate-900">
+                      {formatNumber(estimatedWeight, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kg
+                    </p>
+                    <p className="text-sm text-slate-500">Conversão aproximada considerando pesos médios dos itens</p>
+                  </CardContent>
+                </Card>
+                <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition">
+                  <div className="absolute inset-0 bg-gradient-to-br from-amber-100/70 via-white to-transparent opacity-0 transition group-hover:opacity-100" />
+                  <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-widest text-slate-500">Engajamento</p>
+                      <CardTitle className="text-sm font-medium text-slate-600">Doadores únicos</CardTitle>
+                    </div>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+                      <Users2 className="h-5 w-5" />
+                    </span>
+                  </CardHeader>
+                  <CardContent className="relative z-10 space-y-1">
+                    <p className="text-3xl font-semibold text-slate-900">{formatNumber(uniqueDonors)}</p>
+                    <p className="text-sm text-slate-500">Participantes distintos que contribuíram com a campanha</p>
                   </CardContent>
                 </Card>
               </div>
             </section>
 
-              <section className="grid gap-6 lg:grid-cols-5">
-                <Card className="lg:col-span-3 border border-slate-200 bg-white shadow-none">
-                  <CardHeader>
-                    <CardTitle>Como encontrar seu código</CardTitle>
-                    <CardDescription>
-                      Consulte os comprovantes impressos ou digitais para localizar rapidamente o código do seu bilhete.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4 text-sm text-slate-600">
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                      <p className="font-medium text-slate-700">Localização do código</p>
-                      <p className="mt-2 text-slate-600">
-                        O código da rifa fica destacado na parte superior direita do bilhete. Em comprovantes digitais, ele aparece logo após o texto “Código da rifa”.
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                      <p className="font-medium text-slate-700">Prazos para contestação</p>
-                      <p className="mt-2 text-slate-600">
-                        Envie solicitações de revisão em até 7 dias após a divulgação parcial dos resultados ou até 48 horas antes do sorteio oficial.
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                      <p className="font-medium text-slate-700">Contato da coordenação</p>
-                      <p className="mt-2 text-slate-600">
-                        Em caso de dúvidas, escreva para <Link href="mailto:coordenacao@christmaster.com.br" className="font-medium text-primary hover:underline">coordenacao@christmaster.com.br</Link> ou envie mensagem para (81) 99999-0000.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:col-span-2 border border-slate-200 bg-white shadow-none">
-                  <CardHeader>
-                    <CardTitle>Distribuição por turma</CardTitle>
-                    <CardDescription>Turmas com maior volume de itens registrados</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {donationsByClassData.length > 0 ? (
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={donationsByClassData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="className" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} />
-                            <YAxis tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} />
-                            <Tooltip
-                              cursor={{ fill: "rgba(59,130,246,0.08)" }}
-                              formatter={(value: number) => `${formatNumber(value)} itens`}
-                            />
-                            <Bar dataKey="total" fill="rgba(59,130,246,0.85)" radius={[6, 6, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-500">Ainda não há dados suficientes para gerar o gráfico.</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </section>
-
-              <section className="space-y-6">
-                <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-slate-900">Doações registradas</h2>
-                    <p className="text-sm text-slate-600">Informações pessoais são anonimizadas para preservar a privacidade.</p>
-                  </div>
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center">
-                    <div className="relative md:w-64">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <Input
-                        placeholder="Buscar por participante"
-                        value={searchTerm}
-                        onChange={(event) => setSearchTerm(event.target.value)}
-                        className="rounded-full border-slate-200 bg-white pl-9"
-                      />
-                    </div>
-                    <Select value={selectedClass} onValueChange={setSelectedClass}>
-                      <SelectTrigger className="rounded-full border-slate-200 md:w-48">
-                        <SelectValue placeholder="Filtrar por turma" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas as turmas</SelectItem>
-                        {classOptions.map((className) => (
-                          <SelectItem key={className} value={className}>
-                            {className}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                  <Table>
-                    <TableHeader className="bg-slate-50">
-                      <TableRow>
-                        <TableHead>Turma/Série</TableHead>
-                        <TableHead>Participante</TableHead>
-                        <TableHead>Itens registrados</TableHead>
-                        <TableHead>Quantidade</TableHead>
-                        <TableHead>Data</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredDonations.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} className="py-10 text-center text-sm text-slate-500">
-                            Nenhuma doação encontrada com os filtros atuais.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        filteredDonations.map((donation) => (
-                          <TableRow key={donation.id} className="hover:bg-slate-50">
-                            <TableCell className="font-medium text-slate-700">{donation.className}</TableCell>
-                            <TableCell className="text-slate-700">{donation.displayName}</TableCell>
-                            <TableCell className="text-slate-600">{donation.productSummary || "Itens diversos"}</TableCell>
-                            <TableCell className="font-semibold text-slate-700">{formatNumber(donation.totalQuantity)}</TableCell>
-                            <TableCell className="text-slate-600">{formatDate(donation.date)}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </section>
-
-              <section className="grid gap-6 lg:grid-cols-2">
-                <Card className="border border-slate-200 bg-white shadow-none">
-                  <CardHeader>
-                    <CardTitle>Consulta de rifas e bilhetes</CardTitle>
-                    <CardDescription>Informe o código do bilhete para verificar o status e a turma vinculada.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                      <Input
-                        placeholder="Digite o código da rifa"
-                        value={ticketQuery}
-                        onChange={(event) => setTicketQuery(event.target.value)}
-                        className="rounded-full border-slate-200"
-                      />
-                      <Button variant="secondary" className="gap-2" onClick={() => setTicketQuery(ticketQuery.trim())}>
-                        Pesquisar
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="space-y-2">
-                      {ticketQuery.trim() === "" ? (
-                        <p className="text-sm text-slate-500">Digite um código válido para visualizar o resultado.</p>
-                      ) : filteredTicketRows.length > 0 ? (
-                        filteredTicketRows.map((ticket) => (
-                          <div
-                            key={ticket.id}
-                            className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div>
-                              <p className="text-sm font-semibold text-slate-700">Código {ticket.code}</p>
-                              <p className="text-xs text-slate-500">Turma associada: {ticket.className}</p>
-                            </div>
-                            <Badge
-                              variant={ticket.status?.toLowerCase() === "confirmado" ? "default" : ticket.status?.toLowerCase() === "pendente" ? "secondary" : "outline"}
-                              className="capitalize"
-                            >
-                              {ticket.status || "Sem status"}
-                            </Badge>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-                          Nenhum bilhete foi localizado com esse código. Revise os caracteres ou entre em contato com a coordenação.
+            <section className="grid gap-6 xl:grid-cols-5">
+              <Card className="relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-3">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-slate-100 via-white to-transparent opacity-60" />
+                <CardHeader className="relative z-10">
+                  <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Transparência reforçada
+                  </CardTitle>
+                  <CardDescription className="text-sm text-slate-600">
+                    Indicadores atualizados para acompanhar a campanha com clareza, confiança e protagonismo das turmas.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="relative z-10 grid gap-4 text-sm text-slate-600 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
+                      <ShieldCheck className="mt-1 h-4 w-4 text-emerald-500" />
+                      <div>
+                        <p className="font-medium text-slate-700">Dados auditáveis</p>
+                        <p className="text-sm text-slate-600">
+                          Cada lançamento passa por validação e fica registrado no histórico público do sistema.
                         </p>
-                      )}
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
+                      <Users2 className="mt-1 h-4 w-4 text-sky-500" />
+                      <div>
+                        <p className="font-medium text-slate-700">Participação das turmas</p>
+                        <p className="text-sm text-slate-600">
+                          {engagedClasses > 0 ? (
+                            <>
+                              {formatNumber(engagedClasses)} turmas ativas somando {formatNumber(uniqueDonors)} doadores únicos.
+                            </>
+                          ) : (
+                            "As turmas aparecerão aqui assim que as primeiras doações forem registradas."
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
+                      <Target className="mt-1 h-4 w-4 text-rose-500" />
+                      <div>
+                        <p className="font-medium text-slate-700">Acompanhamento da meta</p>
+                        <p className="text-sm text-slate-600">
+                          {hasGoalConfigured ? (
+                            <>
+                              Estamos em{" "}
+                              <span className="font-semibold text-slate-800">
+                                {formatNumber(goalProgress, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}%
+                              </span>{" "}
+                              da meta mensal
+                              {remainingGoal > 0 ? (
+                                <>
+                                  {" "}com{" "}
+                                  <span className="font-semibold text-slate-800">{formatNumber(remainingGoal)}</span> itens pendentes.
+                                </>
+                              ) : (
+                                "."
+                              )}
+                            </>
+                          ) : (
+                            "Configure a meta mensal para acompanhar a evolução automaticamente."
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
+                      <Sparkles className="mt-1 h-4 w-4 text-indigo-500" />
+                      <div>
+                        <p className="font-medium text-slate-700">Canal direto com a coordenação</p>
+                        <p className="text-sm text-slate-600">
+                          Dúvidas? Escreva para{" "}
+                          <Link href="mailto:coordenacao@christmaster.com.br" className="font-medium text-primary hover:underline">
+                            coordenacao@christmaster.com.br
+                          </Link>{" "}
+                          ou envie mensagem para (81) 99999-0000.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-slate-900">
+                    <Trophy className="h-5 w-5 text-amber-500" />
+                    Ranking visual por turma
+                  </CardTitle>
+                  <CardDescription>Turmas com maior volume de itens registrados.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {donationsByClassData.length > 0 ? (
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={donationsByClassData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                          <XAxis dataKey="className" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} />
+                          <YAxis tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} />
+                          <Tooltip cursor={{ fill: "rgba(59,130,246,0.08)" }} formatter={(value: number) => `${formatNumber(value)} itens`} />
+                          <Bar dataKey="total" fill="rgba(59,130,246,0.85)" radius={[8, 8, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">Ainda não há dados suficientes para gerar o gráfico.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
 
-                <Card className="border border-slate-200 bg-white shadow-none">
+            <section>
+              <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur">
+                <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-slate-900">
+                      <Trophy className="h-5 w-5 text-amber-500" />
+                      Ranking completo das turmas
+                    </CardTitle>
+                    <CardDescription>Ordem definida automaticamente pela quantidade total de itens doados.</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="rounded-full border-slate-200/80 bg-white/70 px-4 py-1 text-xs font-medium text-slate-600">
+                    Atualizado em tempo real
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  {classPerformance.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      Nenhuma turma registrada até o momento. Assim que as doações forem lançadas, o ranking será atualizado aqui.
+                    </p>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
+                        {classPerformance.map((entry, index) => {
+                          const progressValue = topClassTotal > 0 ? Math.min(100, (entry.totalQuantity / topClassTotal) * 100) : 0;
+                          return (
+                            <div
+                              key={`${entry.className}-${index}`}
+                              className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm transition hover:shadow-md"
+                            >
+                              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-3">
+                                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white shadow-sm">
+                                    #{index + 1}
+                                  </span>
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-800">{entry.className}</p>
+                                    <p className="text-xs text-slate-500">
+                                      {formatNumber(entry.donors)} doadores • {formatNumber(entry.donationCount)} registros
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="text-sm font-semibold text-slate-700">{formatNumber(entry.totalQuantity)} itens</p>
+                              </div>
+                              <Progress value={progressValue} className="mt-3 h-2" />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Para efeito de comparação justa, as turmas são ordenadas exclusivamente pela quantidade doada, independentemente da data de entrega.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+
+            <section className="space-y-6">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Doações registradas</h2>
+                  <p className="text-sm text-slate-600">
+                    As entradas abaixo estão ordenadas pela quantidade total de itens doados, com os lançamentos mais recentes como critério de desempate.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                  <div className="relative md:w-64">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      placeholder="Buscar por participante"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      className="rounded-full border-slate-200 bg-white/90 pl-9 backdrop-blur"
+                    />
+                  </div>
+                  <Select value={selectedClass} onValueChange={setSelectedClass}>
+                    <SelectTrigger className="rounded-full border-slate-200 bg-white/90 backdrop-blur md:w-48">
+                      <SelectValue placeholder="Filtrar por turma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as turmas</SelectItem>
+                      {classOptions.map((className) => (
+                        <SelectItem key={className} value={className}>
+                          {className}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+                <Table>
+                  <TableHeader className="bg-slate-50/80">
+                    <TableRow>
+                      <TableHead>Turma/Série</TableHead>
+                      <TableHead>Participante</TableHead>
+                      <TableHead>Itens registrados</TableHead>
+                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead className="text-right">Data</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDonations.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-10 text-center text-sm text-slate-500">
+                          Nenhuma doação encontrada com os filtros atuais.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredDonations.map((donation) => (
+                        <TableRow key={donation.id} className="transition hover:bg-slate-50/80">
+                          <TableCell>
+                            <Badge variant="outline" className="rounded-full border-slate-300 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                              {donation.className}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-slate-700">{donation.displayName}</TableCell>
+                          <TableCell className="text-slate-600">{donation.productSummary || "Itens diversos"}</TableCell>
+                          <TableCell className="text-right font-semibold text-slate-800">{formatNumber(donation.totalQuantity)}</TableCell>
+                          <TableCell className="text-right text-slate-600">{formatDate(donation.date)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </section>
+
+              <section className="grid gap-6 xl:grid-cols-5">
+                <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-2">
                   <CardHeader>
-                    <CardTitle>Histórico resumido</CardTitle>
+                    <CardTitle className="text-slate-900">Histórico resumido</CardTitle>
                     <CardDescription>Últimos registros de auditoria não sensíveis do sistema.</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -569,7 +668,7 @@ export default function TransparencyPage() {
                     ) : (
                       <ul className="space-y-3">
                         {publicAuditLogs.map((log) => (
-                          <li key={log.id} className="relative rounded-xl border border-slate-200 bg-slate-50 p-4">
+                          <li key={log.id} className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <p className="text-sm font-semibold text-slate-700">{log.action}</p>
@@ -583,13 +682,11 @@ export default function TransparencyPage() {
                     )}
                   </CardContent>
                 </Card>
-              </section>
 
-              <section>
-                <Card className="border border-slate-200 bg-white shadow-none">
+                <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-3">
                   <CardHeader>
-                    <CardTitle>Formulário público de contestação</CardTitle>
-                    <CardDescription>Encontrou algum dado incorreto? Envie sua contestação e retornaremos com a atualização necessária.</CardDescription>
+                    <CardTitle className="text-slate-900">Formulário público de revisão</CardTitle>
+                    <CardDescription>Encontrou algum dado incorreto? Envie sua solicitação e retornaremos com a atualização necessária.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form className="grid gap-6 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
@@ -598,7 +695,7 @@ export default function TransparencyPage() {
                         <Input
                           id="nome"
                           placeholder="Como deseja ser identificado"
-                          className="border-slate-200"
+                          className="border-slate-200 bg-white/90 backdrop-blur"
                           {...register("nome", { required: "Informe seu nome" })}
                         />
                         {errors.nome && <p className="text-xs text-destructive">{errors.nome.message}</p>}
@@ -608,30 +705,31 @@ export default function TransparencyPage() {
                         <Input
                           id="contato"
                           placeholder="WhatsApp ou e-mail"
-                          className="border-slate-200"
+                          className="border-slate-200 bg-white/90 backdrop-blur"
                           {...register("contato", { required: "Informe um contato para retorno" })}
                         />
                         {errors.contato && <p className="text-xs text-destructive">{errors.contato.message}</p>}
                       </div>
                       <div className="space-y-2 md:col-span-2 md:grid md:grid-cols-2 md:gap-6">
                         <div className="space-y-2">
-                          <Label htmlFor="codigoRifa">Código da rifa/bilhete</Label>
+                          <Label htmlFor="referencia">Referência da doação (opcional)</Label>
                           <Input
-                            id="codigoRifa"
-                            placeholder="Ex: CM-1234"
-                            className="border-slate-200"
-                            {...register("codigoRifa", { required: "Informe o código da rifa" })}
+                            id="referencia"
+                            placeholder="Número do comprovante ou detalhes relevantes"
+                            className="border-slate-200 bg-white/90 backdrop-blur"
+                            {...register("referencia")}
                           />
-                          {errors.codigoRifa && <p className="text-xs text-destructive">{errors.codigoRifa.message}</p>}
                         </div>
-                        <div className="hidden md:block" />
+                        <div className="rounded-2xl border border-slate-200/60 bg-slate-50/80 p-4 text-xs text-slate-500">
+                          Use este campo para indicar comprovantes, datas ou outras informações que facilitem a localização do registro.
+                        </div>
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="descricao">Descreva o que aconteceu</Label>
                         <Textarea
                           id="descricao"
-                          placeholder="Explique o motivo da contestação com o máximo de detalhes possível"
-                          className="min-h-[140px] border-slate-200"
+                          placeholder="Explique o motivo da revisão com o máximo de detalhes possível"
+                          className="min-h-[140px] border-slate-200 bg-white/90 backdrop-blur"
                           {...register("descricao", { required: "Descreva a situação para podermos ajudar" })}
                         />
                         {errors.descricao && <p className="text-xs text-destructive">{errors.descricao.message}</p>}
@@ -647,7 +745,7 @@ export default function TransparencyPage() {
                             </>
                           ) : (
                             <>
-                              Enviar contestação <ArrowRight className="h-4 w-4" />
+                              Enviar revisão <ArrowRight className="h-4 w-4" />
                             </>
                           )}
                         </Button>
@@ -656,6 +754,7 @@ export default function TransparencyPage() {
                   </CardContent>
                 </Card>
               </section>
+
             </div>
           )}
       </div>

@@ -122,7 +122,7 @@ export interface AuditLog {
 export interface ContestacaoFormData {
   nome: string;
   contato: string;
-  codigoRifa: string;
+  referencia?: string;
   descricao: string;
 }
 
