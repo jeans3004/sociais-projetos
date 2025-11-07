@@ -84,6 +84,9 @@ export interface Donation {
   registeredBy: string; // ID do admin
   registeredByName?: string; // Denormalized
   createdAt: Timestamp;
+  updatedAt?: Timestamp;
+  updatedBy?: string;
+  updatedByName?: string;
 }
 
 export interface DonationFormData {

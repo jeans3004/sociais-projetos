@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Eye, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,6 +34,7 @@ import {
   getDonations,
   createDonation,
   deleteDonation,
+  updateDonation,
 } from "@/lib/firebase/donations";
 import { getStudents } from "@/lib/firebase/students";
 import { Donation, DonationFormData, Student } from "@/types";
@@ -48,6 +49,7 @@ export default function DoacoesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [editingDonation, setEditingDonation] = useState<Donation | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedDonation, setSelectedDonation] = useState<Donation | null>(null);
@@ -118,6 +120,28 @@ export default function DoacoesPage() {
     }
   };
 
+  const handleUpdateDonation = async (data: DonationFormData) => {
+    if (!user || !editingDonation) return;
+
+    try {
+      await updateDonation(editingDonation.id, data, user.id, user.name);
+      await loadData();
+      setEditingDonation(null);
+      toast({
+        title: "Doação atualizada",
+        description: "As informações da doação foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      console.error("Error updating donation:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao atualizar doação",
+        description: "Não foi possível atualizar a doação.",
+      });
+      throw error;
+    }
+  };
+
   const handleDeleteDonation = async () => {
     if (!donationToDelete) return;
 
@@ -150,6 +174,16 @@ export default function DoacoesPage() {
     setDetailsOpen(true);
   };
 
+  const openEditDonation = (donation: Donation) => {
+    setEditingDonation(donation);
+    setFormOpen(true);
+  };
+
+  const handleCloseForm = () => {
+    setFormOpen(false);
+    setEditingDonation(null);
+  };
+
   const closeDonationDetails = (open: boolean) => {
     setDetailsOpen(open);
     if (!open) {
@@ -174,7 +208,12 @@ export default function DoacoesPage() {
             Registre e gerencie as doações recebidas
           </p>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
+        <Button
+          onClick={() => {
+            setEditingDonation(null);
+            setFormOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Nova Doação
         </Button>
@@ -248,6 +287,14 @@ export default function DoacoesPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        onClick={() => openEditDonation(donation)}
+                        aria-label="Editar doação"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => openDeleteDialog(donation)}
                         aria-label="Excluir doação"
                       >
@@ -276,9 +323,10 @@ export default function DoacoesPage() {
       </div>
 
       <DonationForm
+        donation={editingDonation}
         open={formOpen}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleCreateDonation}
+        onClose={handleCloseForm}
+        onSubmit={editingDonation ? handleUpdateDonation : handleCreateDonation}
       />
 
       <Dialog open={detailsOpen} onOpenChange={closeDonationDetails}>
