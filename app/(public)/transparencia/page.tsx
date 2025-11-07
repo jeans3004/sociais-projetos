@@ -12,12 +12,18 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { LucideIcon } from "lucide-react";
 import {
   ArrowRight,
+  ArrowUp,
+  BarChart3,
   CheckCircle2,
+  History,
+  ListOrdered,
   Loader2,
   Package,
   Scale,
+  ScrollText,
   Search,
   ShieldCheck,
   Sparkles,
@@ -137,6 +143,45 @@ const formatClassLabel = (grade?: number, classValue?: string) => {
 
   return `${grade}º ${normalized}`;
 };
+
+const navigationSections: { id: string; label: string; description: string; icon: LucideIcon }[] = [
+  {
+    id: "indicadores-principais",
+    label: "Indicadores principais",
+    description: "Resumo das doações confirmadas",
+    icon: CheckCircle2,
+  },
+  {
+    id: "destaques-da-campanha",
+    label: "Destaques da campanha",
+    description: "Metas, engajamento e transparência",
+    icon: Sparkles,
+  },
+  {
+    id: "ranking-visual",
+    label: "Ranking visual",
+    description: "Gráfico das turmas com maior volume",
+    icon: BarChart3,
+  },
+  {
+    id: "ranking-completo",
+    label: "Ranking completo",
+    description: "Lista detalhada de desempenho",
+    icon: ListOrdered,
+  },
+  {
+    id: "doacoes-registradas",
+    label: "Doações registradas",
+    description: "Tabela pesquisável com todos os lançamentos",
+    icon: ScrollText,
+  },
+  {
+    id: "auditoria-e-revisao",
+    label: "Auditoria e revisão",
+    description: "Histórico público e formulário de contato",
+    icon: History,
+  },
+];
 
 export default function TransparencyPage() {
   const { donations, loading: donationsLoading } = useDonations();
@@ -442,7 +487,10 @@ export default function TransparencyPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-50">
-      <div className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+      <div
+        id="topo-portal"
+        className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16"
+      >
         <div className="mx-auto max-w-3xl text-center">
           <Badge variant="secondary" className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/80 px-4 py-1.5 text-slate-700 shadow-sm backdrop-blur">
             <ShieldCheck className="h-4 w-4 text-emerald-500" /> Portal da Transparência
@@ -463,9 +511,37 @@ export default function TransparencyPage() {
             </div>
           </div>
         ) : (
-          <div className="mt-12 space-y-12">
-            <section>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-12 flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-10">
+            <aside className="lg:order-2 lg:sticky lg:top-28">
+              <nav
+                aria-label="Navegação rápida do portal"
+                className="rounded-3xl border border-slate-200/80 bg-white/70 p-6 shadow-[0_20px_50px_rgba(15,23,42,0.05)] backdrop-blur"
+              >
+                <p className="text-sm font-semibold text-slate-800">Navegação rápida</p>
+                <p className="mt-1 text-xs text-slate-500">Use os atalhos para ir direto ao bloco desejado.</p>
+                <ul className="mt-4 space-y-2">
+                  {navigationSections.map(({ id, label, description, icon: Icon }) => (
+                    <li key={id}>
+                      <Link
+                        href={`#${id}`}
+                        className="group flex items-start gap-3 rounded-2xl border border-transparent bg-white/40 p-3 text-left transition hover:border-primary/30 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      >
+                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary/15">
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <span>
+                          <span className="block text-sm font-semibold text-slate-800">{label}</span>
+                          <span className="mt-0.5 block text-xs text-slate-500">{description}</span>
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            </aside>
+            <div className="space-y-12 lg:order-1">
+              <section id="indicadores-principais">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition hover:bg-white">
                   <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
                     <div>
@@ -528,10 +604,10 @@ export default function TransparencyPage() {
                     <p className="text-sm text-slate-500">Participantes distintos que contribuíram com a campanha</p>
                   </CardContent>
                 </Card>
-              </div>
-            </section>
+                </div>
+              </section>
 
-            <section className="grid gap-6 xl:grid-cols-5">
+            <section id="destaques-da-campanha" className="grid gap-6 xl:grid-cols-5">
               <Card className="relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-3">
                 <CardHeader className="relative z-10">
                   <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
@@ -613,7 +689,10 @@ export default function TransparencyPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-2">
+              <Card
+                id="ranking-visual"
+                className="border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-2"
+              >
                 <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2 text-slate-900">
@@ -668,7 +747,7 @@ export default function TransparencyPage() {
               </Card>
             </section>
 
-            <section>
+            <section id="ranking-completo">
               <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur">
                 <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-2">
@@ -750,7 +829,7 @@ export default function TransparencyPage() {
               </Card>
             </section>
 
-            <section className="space-y-6">
+            <section id="doacoes-registradas" className="space-y-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">Doações registradas</h2>
@@ -822,7 +901,7 @@ export default function TransparencyPage() {
               </div>
             </section>
 
-              <section className="grid gap-6 xl:grid-cols-5">
+              <section id="auditoria-e-revisao" className="grid gap-6 xl:grid-cols-5">
                 <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-2">
                   <CardHeader>
                     <CardTitle className="text-slate-900">Histórico resumido</CardTitle>
@@ -919,10 +998,19 @@ export default function TransparencyPage() {
                     </form>
                   </CardContent>
                 </Card>
+                <div className="flex justify-end xl:col-span-5">
+                  <Link
+                    href="#topo-portal"
+                    className="inline-flex items-center gap-2 rounded-full border border-transparent bg-white/60 px-4 py-2 text-sm font-medium text-primary transition hover:border-primary/20 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  >
+                    <ArrowUp className="h-4 w-4" /> Voltar ao topo
+                  </Link>
+                </div>
               </section>
 
             </div>
-          )}
+          </div>
+        )}
       </div>
     </main>
   );
