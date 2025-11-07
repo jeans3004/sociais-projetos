@@ -122,17 +122,54 @@ export async function createDonation(
  */
 export async function updateDonation(
   id: string,
-  data: Partial<DonationFormData>
+  data: DonationFormData,
+  userId: string,
+  userName: string
 ): Promise<void> {
   try {
     const donationRef = doc(db, COLLECTION_NAME, id);
-    const updateData: any = { ...data };
+    const existingDonation = await getDonation(id);
 
-    if (data.date) {
-      updateData.date = Timestamp.fromDate(data.date);
+    if (!existingDonation) {
+      throw new Error("Donation not found");
     }
 
+    const student = await getStudent(data.studentId);
+    if (!student) {
+      throw new Error("Student not found");
+    }
+
+    const previousTotal = existingDonation.products.reduce(
+      (sum, product) => sum + product.quantity,
+      0
+    );
+
+    const newTotal = data.products.reduce(
+      (sum, product) => sum + product.quantity,
+      0
+    );
+
+    const updateData = {
+      ...data,
+      date: Timestamp.fromDate(data.date),
+      studentName: student.fullName,
+      studentClass: student.class,
+      updatedAt: Timestamp.now(),
+      updatedBy: userId,
+      updatedByName: userName,
+    } as Record<string, unknown>;
+
     await updateDoc(donationRef, updateData);
+
+    if (existingDonation.studentId !== data.studentId) {
+      await updateStudentTotalDonations(existingDonation.studentId, -previousTotal);
+      await updateStudentTotalDonations(data.studentId, newTotal);
+    } else {
+      const difference = newTotal - previousTotal;
+      if (difference !== 0) {
+        await updateStudentTotalDonations(data.studentId, difference);
+      }
+    }
   } catch (error) {
     console.error("Error updating donation:", error);
     throw error;
