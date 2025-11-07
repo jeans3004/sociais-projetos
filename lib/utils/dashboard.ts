@@ -1,4 +1,12 @@
-import { Donation, Student, DashboardMetrics, MonthlyData, ClassRanking } from "@/types";
+import {
+  Donation,
+  Student,
+  DashboardMetrics,
+  MonthlyData,
+  ClassRanking,
+  ProductType,
+  PRODUCT_TYPES,
+} from "@/types";
 import { startOfMonth, endOfMonth, startOfYear, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -40,18 +48,14 @@ export function calculateDashboardMetrics(
   const uniqueDonors = uniqueDonorIds.size;
 
   // Goal progress
-  const goalProgress = monthlyGoal > 0 ? (monthlyTotal / monthlyGoal) * 100 : 0;
+  const goalProgress =
+    monthlyGoal > 0 ? Math.min(100, (monthlyTotal / monthlyGoal) * 100) : 0;
 
   // Product breakdown
-  const productBreakdown: Record<string, number> = {
-    "Arroz": 0,
-    "Feijão": 0,
-    "Macarrão": 0,
-    "Açúcar e biscoito": 0,
-    "Leite em pó": 0,
-    "Café": 0,
-    "Produtos de higiene e limpeza": 0,
-  };
+  const productBreakdown = PRODUCT_TYPES.reduce((acc, type) => {
+    acc[type] = 0;
+    return acc;
+  }, {} as Record<ProductType, number>);
 
   monthlyDonations.forEach((donation) => {
     donation.products.forEach((product) => {

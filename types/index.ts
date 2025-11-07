@@ -29,7 +29,7 @@ export const PRODUCT_TYPES: ProductType[] = [
 export interface ProductDonation {
   product: ProductType;
   quantity: number;
-  unit: "kg" | "un" | "lt" | "pacote";
+  unit: "kg" | "g" | "un" | "lt" | "pacote";
 }
 
 // Student types

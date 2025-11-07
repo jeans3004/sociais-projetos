@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDonations } from "@/lib/firebase/donations";
 import { getStudents } from "@/lib/firebase/students";
 import { getOrCreateSettings } from "@/lib/firebase/settings";
-import { formatCurrency } from "@/lib/utils";
+import { formatItems, formatNumber } from "@/lib/utils";
 import {
   calculateDashboardMetrics,
   getMonthlyData,
@@ -119,28 +119,28 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Total do Mês"
-          value={formatCurrency(metrics?.monthlyTotal || 0)}
-          description={`Meta: ${formatCurrency(metrics?.monthlyGoal || 0)}`}
+          value={formatItems(metrics?.monthlyTotal ?? 0)}
+          description={`Meta: ${formatItems(metrics?.monthlyGoal ?? 0)}`}
           icon={DollarSign}
           iconColor="text-green-600"
         />
         <MetricCard
           title="Total do Ano"
-          value={formatCurrency(metrics?.yearlyTotal || 0)}
+          value={formatItems(metrics?.yearlyTotal ?? 0)}
           description={`${new Date().getFullYear()}`}
           icon={TrendingUp}
           iconColor="text-blue-600"
         />
         <MetricCard
           title="Doadores Únicos"
-          value={metrics?.uniqueDonors.toString() || "0"}
-          description={`de ${students.length} alunos`}
+          value={formatNumber(metrics?.uniqueDonors ?? 0)}
+          description={`de ${formatNumber(students.length)} alunos`}
           icon={Users}
           iconColor="text-purple-600"
         />
         <MetricCard
           title="Meta vs Realizado"
-          value={`${metrics?.goalProgress.toFixed(0)}%`}
+          value={`${Math.round(metrics?.goalProgress ?? 0)}%`}
           description="do objetivo mensal"
           icon={Target}
           iconColor="text-orange-600"
@@ -154,10 +154,10 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <Progress value={metrics?.goalProgress || 0} className="h-3" />
+            <Progress value={metrics?.goalProgress ?? 0} className="h-3" />
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>{formatCurrency(metrics?.monthlyTotal || 0)}</span>
-              <span>{formatCurrency(metrics?.monthlyGoal || 0)}</span>
+              <span>{formatItems(metrics?.monthlyTotal ?? 0)}</span>
+              <span>{formatItems(metrics?.monthlyGoal ?? 0)}</span>
             </div>
           </div>
         </CardContent>

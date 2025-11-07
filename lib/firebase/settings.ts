@@ -41,8 +41,8 @@ export async function getOrCreateSettings(): Promise<Settings> {
       // Create default settings
       const defaultSettings: Omit<Settings, "id"> = {
         schoolName: process.env.NEXT_PUBLIC_SCHOOL_NAME || "Escola",
-        monthlyGoal: 10000,
-        yearlyGoal: 120000,
+        monthlyGoal: 1000,
+        yearlyGoal: 12000,
         academicYear: new Date().getFullYear().toString(),
         updatedAt: Timestamp.now(),
         updatedBy: "system",

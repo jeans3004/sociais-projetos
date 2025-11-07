@@ -40,7 +40,6 @@ import {
   deleteStudent,
 } from "@/lib/firebase/students";
 import { Student, StudentFormData } from "@/types";
-import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
   groupStudentsHierarchically,

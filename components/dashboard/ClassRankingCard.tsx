@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClassRanking } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatItems } from "@/lib/utils";
 import { Trophy } from "lucide-react";
 import {
   Select,
@@ -86,7 +86,7 @@ export function ClassRankingCard({
                   </p>
                 </div>
                 <div className="text-sm font-semibold">
-                  {formatCurrency(ranking.totalDonated)}
+                  {formatItems(ranking.totalDonated)}
                 </div>
               </div>
             ))}

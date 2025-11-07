@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { MonthlyData } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatItems, formatNumber } from "@/lib/utils";
 
 interface MonthlyChartProps {
   data: MonthlyData[];
@@ -30,22 +30,22 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
             <XAxis dataKey="month" />
             <YAxis
               tickFormatter={(value) =>
-                new Intl.NumberFormat("pt-BR", {
+                formatNumber(value, {
                   notation: "compact",
                   compactDisplay: "short",
-                }).format(value)
+                })
               }
             />
             <Tooltip
-              formatter={(value: number) => formatCurrency(value)}
+              formatter={(value: number) => formatItems(value)}
               labelStyle={{ color: "#000" }}
             />
             <Line
               type="monotone"
-              dataKey="amount"
+              dataKey="total"
               stroke="#8884d8"
               strokeWidth={2}
-              name="Doações"
+              name="Itens doados"
             />
           </LineChart>
         </ResponsiveContainer>

@@ -28,7 +28,7 @@ export const productDonationSchema = z.object({
     "Outros",
   ]),
   quantity: z.number().positive("Quantidade deve ser positiva"),
-  unit: z.enum(["kg", "un", "lt", "pacote"]),
+  unit: z.enum(["kg", "g", "un", "lt", "pacote"]),
 });
 
 // Donation validation schema

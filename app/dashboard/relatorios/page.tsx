@@ -17,7 +17,7 @@ import {
 import { getDonations, getDonationsByDateRange } from "@/lib/firebase/donations";
 import { getStudents } from "@/lib/firebase/students";
 import { Donation, Student } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 

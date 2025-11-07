@@ -147,13 +147,14 @@ export default function ConfiguracoesPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="monthlyGoal">Meta Mensal (R$) *</Label>
+                <Label htmlFor="monthlyGoal">Meta Mensal (itens) *</Label>
                 <Input
                   id="monthlyGoal"
                   type="number"
-                  step="0.01"
+                  step="1"
+                  min="1"
                   {...register("monthlyGoal", { valueAsNumber: true })}
-                  placeholder="10000.00"
+                  placeholder="500"
                 />
                 {errors.monthlyGoal && (
                   <p className="text-sm text-destructive">
@@ -163,13 +164,14 @@ export default function ConfiguracoesPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="yearlyGoal">Meta Anual (R$) *</Label>
+                <Label htmlFor="yearlyGoal">Meta Anual (itens) *</Label>
                 <Input
                   id="yearlyGoal"
                   type="number"
-                  step="0.01"
+                  step="1"
+                  min="1"
                   {...register("yearlyGoal", { valueAsNumber: true })}
-                  placeholder="120000.00"
+                  placeholder="6000"
                 />
                 {errors.yearlyGoal && (
                   <p className="text-sm text-destructive">

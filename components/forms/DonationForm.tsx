@@ -239,6 +239,7 @@ export function DonationForm({
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="kg">Kg</SelectItem>
+                                <SelectItem value="g">Gramas</SelectItem>
                                 <SelectItem value="un">Unidade</SelectItem>
                                 <SelectItem value="lt">Litro</SelectItem>
                                 <SelectItem value="pacote">Pacote</SelectItem>
