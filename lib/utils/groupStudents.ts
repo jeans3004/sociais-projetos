@@ -1,4 +1,5 @@
 import { Student } from "@/types";
+import { formatGradeLabel } from "@/lib/utils";
 
 export interface StudentsByClass {
   [className: string]: Student[];
@@ -22,7 +23,7 @@ export function groupStudentsHierarchically(
 
   students.forEach((student) => {
     const coordination = student.coordination || "Sem Coordenação";
-    const grade = `${student.grade}º Ano`;
+    const grade = formatGradeLabel(student.grade);
     const className = student.class || "Sem Turma";
 
     // Initialize coordination if doesn't exist

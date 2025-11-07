@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, formatGradeLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -66,7 +66,7 @@ export function StudentCombobox({
             <div className="flex items-center gap-2 truncate">
               <span className="font-medium truncate">{selectedStudent.fullName}</span>
               <span className="text-xs text-muted-foreground">
-                {selectedStudent.grade}º Ano - {selectedStudent.class}
+                {formatGradeLabel(selectedStudent.grade)} - {selectedStudent.class}
               </span>
             </div>
           ) : (
@@ -114,7 +114,7 @@ export function StudentCombobox({
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{student.grade}º Ano</span>
+                      <span>{formatGradeLabel(student.grade)}</span>
                       <span>•</span>
                       <span>Turma {student.class}</span>
                       {student.shift && (

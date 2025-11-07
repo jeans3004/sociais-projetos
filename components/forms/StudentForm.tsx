@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { studentSchema } from "@/lib/validators";
 import { Student, StudentFormData } from "@/types";
+import { formatGradeLabel } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -152,7 +153,7 @@ export function StudentForm({ student, open, onClose, onSubmit }: StudentFormPro
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="grade">Série *</Label>
+              <Label htmlFor="grade">Série/Ano *</Label>
               <Select
                 value={gradeValue?.toString()}
                 onValueChange={(value) => setValue("grade", parseInt(value))}
@@ -163,7 +164,7 @@ export function StudentForm({ student, open, onClose, onSubmit }: StudentFormPro
                 <SelectContent>
                   {Array.from({ length: 12 }, (_, i) => i + 1).map((grade) => (
                     <SelectItem key={grade} value={grade.toString()}>
-                      {grade}º Ano
+                      {formatGradeLabel(grade)}
                     </SelectItem>
                   ))}
                 </SelectContent>
