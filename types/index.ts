@@ -5,20 +5,24 @@ export type ProductType =
   | "Arroz"
   | "Feijão"
   | "Macarrão"
-  | "Açúcar e biscoito"
+  | "Açúcar"
+  | "Biscoito"
   | "Leite em pó"
   | "Café"
-  | "Produtos de higiene e limpeza"
+  | "Higiene"
+  | "Limpeza"
   | "Outros";
 
 export const PRODUCT_TYPES: ProductType[] = [
   "Arroz",
   "Feijão",
   "Macarrão",
-  "Açúcar e biscoito",
+  "Açúcar",
+  "Biscoito",
   "Leite em pó",
   "Café",
-  "Produtos de higiene e limpeza",
+  "Higiene",
+  "Limpeza",
   "Outros",
 ];
 
