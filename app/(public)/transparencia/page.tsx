@@ -84,9 +84,69 @@ interface ClassPerformanceRow {
 
 const UNIT_TO_KG: Record<string, number> = {
   kg: 1,
+  kgs: 1,
+  kilo: 1,
+  kilos: 1,
+  quilo: 1,
+  quilos: 1,
+  kilogram: 1,
+  kilograms: 1,
+  "kg(s)": 1,
+  l: 1,
   lt: 1,
+  litro: 1,
+  litros: 1,
+  "l(s)": 1,
+  ml: 0.001,
+  mililitro: 0.001,
+  mililitros: 0.001,
   un: 0.5,
+  und: 0.5,
+  unidade: 0.5,
+  unidades: 0.5,
+  "unidade(s)": 0.5,
   pacote: 0.8,
+  pacotes: 0.8,
+  pct: 0.8,
+  pac: 0.8,
+  g: 0.001,
+  gr: 0.001,
+  grama: 0.001,
+  gramas: 0.001,
+};
+
+const normalizeUnit = (unit?: string | null) => unit?.toString().trim().toLowerCase() ?? "";
+
+const getUnitWeight = (unit?: string | null) => {
+  const normalized = normalizeUnit(unit);
+  return normalized.length > 0 ? UNIT_TO_KG[normalized] ?? 1 : 1;
+};
+
+const normalizeDonorName = (name?: string | null) => name?.toString().trim().toLowerCase() ?? "";
+
+const normalizeTimestamp = (value: unknown): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (value instanceof Timestamp) {
+    const date = value.toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const possible = value as { toDate?: () => Date; seconds?: number };
+  if (typeof possible?.toDate === "function") {
+    const date = possible.toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof possible?.seconds === "number") {
+    const date = new Date(possible.seconds * 1000);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  return null;
 };
 
 const formatNumber = (value: number, options?: Intl.NumberFormatOptions) =>
@@ -291,7 +351,7 @@ export default function TransparencyPage() {
         id: donation.id,
         className,
         displayName: anonymizeName(donation.studentName),
-        searchName: donation.studentName?.toLowerCase() || "",
+        searchName: normalizeDonorName(donation.studentName),
         productSummary,
         totalQuantity,
         date,
@@ -396,7 +456,7 @@ export default function TransparencyPage() {
         sum +
         donation.products.reduce((productSum, product) => {
           const quantity = typeof product.quantity === "number" ? product.quantity : Number(product.quantity) || 0;
-          const unitWeight = UNIT_TO_KG[product.unit] ?? 1;
+          const unitWeight = getUnitWeight(product.unit);
           return productSum + quantity * unitWeight;
         }, 0)
       );
@@ -427,7 +487,7 @@ export default function TransparencyPage() {
       .filter((row) => {
         if (!searchTerm) return true;
         const normalizedSearch = searchTerm.trim().toLowerCase();
-        const display = row.displayName.toLowerCase();
+        const display = row.displayName.trim().toLowerCase();
         return display.includes(normalizedSearch) || row.searchName.includes(normalizedSearch);
       })
       .filter((row) => {
@@ -452,12 +512,12 @@ export default function TransparencyPage() {
     return auditLogs
       .filter((log) => !log.sensitive)
       .map((log) => {
-        const date = log.timestamp instanceof Timestamp ? log.timestamp.toDate() : new Date();
+        const timestamp = normalizeTimestamp(log.timestamp);
         return {
           id: log.id,
           action: log.action,
           entity: log.entity,
-          timestamp: date,
+          timestamp,
         };
       });
   }, [auditLogs]);
@@ -511,7 +571,7 @@ export default function TransparencyPage() {
             </div>
           </div>
         ) : (
-          <div className="mt-12 flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start lg:gap-10">
+          <div className="mt-12 flex flex-col gap-12 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:items-start">
             <aside className="lg:order-2 lg:sticky lg:top-28">
               <nav
                 aria-label="Navegação rápida do portal"
@@ -539,9 +599,12 @@ export default function TransparencyPage() {
                 </ul>
               </nav>
             </aside>
-            <div className="space-y-12 lg:order-1">
-              <section id="indicadores-principais">
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-16 lg:order-1">
+              <section
+                id="indicadores-principais"
+                className="rounded-4xl border border-slate-200/70 bg-white/60 p-6 shadow-[0_25px_60px_rgba(15,23,42,0.05)] backdrop-blur"
+              >
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
                 <Card className="group relative overflow-hidden border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur transition hover:bg-white">
                   <CardHeader className="relative z-10 flex flex-row items-center justify-between space-y-0 pb-2">
                     <div>
@@ -829,7 +892,10 @@ export default function TransparencyPage() {
               </Card>
             </section>
 
-            <section id="doacoes-registradas" className="space-y-6">
+            <section
+              id="doacoes-registradas"
+              className="space-y-6 rounded-4xl border border-slate-200/70 bg-white/60 p-6 shadow-[0_25px_60px_rgba(15,23,42,0.05)] backdrop-blur"
+            >
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900">Doações registradas</h2>
@@ -863,7 +929,7 @@ export default function TransparencyPage() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-3xl border border-slate-200/70 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
+              <div className="overflow-hidden rounded-3xl border border-slate-200/60 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.06)] backdrop-blur">
                 <Table>
                   <TableHeader className="bg-slate-50/80">
                     <TableRow>
@@ -901,8 +967,12 @@ export default function TransparencyPage() {
               </div>
             </section>
 
-              <section id="auditoria-e-revisao" className="grid gap-6 xl:grid-cols-5">
-                <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-2">
+              <section
+                id="auditoria-e-revisao"
+                className="rounded-4xl border border-slate-200/70 bg-white/60 p-6 shadow-[0_25px_60px_rgba(15,23,42,0.05)] backdrop-blur"
+              >
+                <div className="grid gap-6 xl:grid-cols-5">
+                  <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-2">
                   <CardHeader>
                     <CardTitle className="text-slate-900">Histórico resumido</CardTitle>
                     <CardDescription>Últimos registros de auditoria não sensíveis do sistema.</CardDescription>
@@ -919,7 +989,9 @@ export default function TransparencyPage() {
                                 <p className="text-sm font-semibold text-slate-700">{log.action}</p>
                                 <p className="text-xs text-slate-500">Referência: {log.entity}</p>
                               </div>
-                              <span className="text-xs font-medium text-slate-500">{formatDate(log.timestamp)}</span>
+                              <span className="text-xs font-medium text-slate-500">
+                                {log.timestamp ? formatDate(log.timestamp) : "Data indisponível"}
+                              </span>
                             </div>
                           </li>
                         ))}
@@ -928,7 +1000,7 @@ export default function TransparencyPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-3">
+                  <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-3">
                   <CardHeader>
                     <CardTitle className="text-slate-900">Formulário público de revisão</CardTitle>
                     <CardDescription>Encontrou algum dado incorreto? Envie sua solicitação e retornaremos com a atualização necessária.</CardDescription>
@@ -997,14 +1069,15 @@ export default function TransparencyPage() {
                       </div>
                     </form>
                   </CardContent>
-                </Card>
-                <div className="flex justify-end xl:col-span-5">
-                  <Link
-                    href="#topo-portal"
-                    className="inline-flex items-center gap-2 rounded-full border border-transparent bg-white/60 px-4 py-2 text-sm font-medium text-primary transition hover:border-primary/20 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                  >
-                    <ArrowUp className="h-4 w-4" /> Voltar ao topo
-                  </Link>
+                  </Card>
+                  <div className="flex justify-end xl:col-span-5">
+                    <Link
+                      href="#topo-portal"
+                      className="inline-flex items-center gap-2 rounded-full border border-transparent bg-white/60 px-4 py-2 text-sm font-medium text-primary transition hover:border-primary/20 hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    >
+                      <ArrowUp className="h-4 w-4" /> Voltar ao topo
+                    </Link>
+                  </div>
                 </div>
               </section>
 
