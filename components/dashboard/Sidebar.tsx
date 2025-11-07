@@ -13,6 +13,7 @@ import {
   UserCog,
   Ticket,
   ShieldCheck,
+  LifeBuoy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/firebase/auth";
@@ -62,6 +63,12 @@ const menuItems = [
     href: "/dashboard/configuracoes",
     icon: Settings,
     roles: ["admin"],
+  },
+  {
+    title: "Ajuda",
+    href: "/dashboard/ajuda",
+    icon: LifeBuoy,
+    roles: ["admin", "user"],
   },
 ];
 
