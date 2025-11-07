@@ -105,17 +105,32 @@ export function getMonthlyData(donations: Donation[]): MonthlyData[] {
 /**
  * Get class rankings based on total donations
  */
-export function getClassRankings(students: Student[]): ClassRanking[] {
-  const classMap = new Map<string, { totalDonations: number; donorCount: number }>();
+export function getClassRankings(
+  students: Student[],
+  grade?: number
+): ClassRanking[] {
+  const classMap = new Map<
+    string,
+    { totalDonations: number; donorCount: number }
+  >();
 
   students.forEach((student) => {
-    if (student.totalDonations && student.totalDonations > 0) {
-      const existing = classMap.get(student.class) || { totalDonations: 0, donorCount: 0 };
-      classMap.set(student.class, {
-        totalDonations: existing.totalDonations + student.totalDonations,
-        donorCount: existing.donorCount + 1,
-      });
+    if (!student.totalDonations || student.totalDonations <= 0) {
+      return;
     }
+
+    if (grade !== undefined && student.grade !== grade) {
+      return;
+    }
+
+    const classLabel = `${student.grade}º ${student.class}`;
+    const existing =
+      classMap.get(classLabel) || { totalDonations: 0, donorCount: 0 };
+
+    classMap.set(classLabel, {
+      totalDonations: existing.totalDonations + student.totalDonations,
+      donorCount: existing.donorCount + 1,
+    });
   });
 
   const rankings: ClassRanking[] = Array.from(classMap.entries())

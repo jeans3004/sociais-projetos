@@ -52,9 +52,10 @@ import { useDonations } from "@/hooks/useDonations";
 import { useAuditLogs } from "@/hooks/useAuditLogs";
 import { getOrCreateSettings } from "@/lib/firebase/settings";
 import { createContestacao } from "@/lib/firebase/contestacoes";
-import { ContestacaoFormData, Donation, Settings } from "@/types";
+import { ContestacaoFormData, Donation, Settings, Student } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { Timestamp } from "firebase/firestore";
+import { getStudents } from "@/lib/firebase/students";
 
 interface PublicDonationRow {
   id: string;
@@ -64,6 +65,7 @@ interface PublicDonationRow {
   productSummary: string;
   totalQuantity: number;
   date: Date;
+  grade?: number;
 }
 
 interface ClassPerformanceRow {
@@ -71,6 +73,7 @@ interface ClassPerformanceRow {
   totalQuantity: number;
   donationCount: number;
   donors: number;
+  grade?: number;
 }
 
 const UNIT_TO_KG: Record<string, number> = {
@@ -107,13 +110,44 @@ const toDate = (value: Donation["date"]) => {
   return new Date(value as unknown as string);
 };
 
+const extractGradeFromClass = (className?: string): number | undefined => {
+  if (!className) return undefined;
+  const match = className.match(/(\d{1,2})/);
+  if (!match) return undefined;
+  const grade = Number(match[1]);
+  return Number.isFinite(grade) ? grade : undefined;
+};
+
+const formatClassLabel = (grade?: number, classValue?: string) => {
+  const fallback = classValue?.trim();
+  if (grade === undefined || Number.isNaN(grade)) {
+    return fallback && fallback.length > 0 ? fallback : "Não informado";
+  }
+
+  if (!fallback || fallback.length === 0 || fallback === "Não informado") {
+    return `${grade}º ano`;
+  }
+
+  const normalized = fallback.replace(/\s+/g, " ");
+  const gradePattern = new RegExp(`^${grade}(º|o|°)?\\s*`, "i");
+  if (gradePattern.test(normalized)) {
+    const withoutPrefix = normalized.replace(gradePattern, "").trim();
+    return withoutPrefix ? `${grade}º ${withoutPrefix}` : `${grade}º ano`;
+  }
+
+  return `${grade}º ${normalized}`;
+};
+
 export default function TransparencyPage() {
   const { donations, loading: donationsLoading } = useDonations();
   const { auditLogs, loading: auditLoading } = useAuditLogs(40);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
+  const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   const { toast } = useToast();
 
   const {
@@ -156,6 +190,40 @@ export default function TransparencyPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+
+    const loadStudents = async () => {
+      try {
+        setStudentsLoading(true);
+        const data = await getStudents();
+        if (mounted) {
+          setStudents(data);
+        }
+      } catch (error) {
+        console.error("TransparencyPage:students", error);
+      } finally {
+        if (mounted) {
+          setStudentsLoading(false);
+        }
+      }
+    };
+
+    loadStudents();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const studentIndex = useMemo(() => {
+    const index = new Map<string, Student>();
+    students.forEach((student) => {
+      index.set(student.id, student);
+    });
+    return index;
+  }, [students]);
+
   const donationRows = useMemo<PublicDonationRow[]>(() => {
     return donations.map((donation) => {
       const date = toDate(donation.date);
@@ -164,6 +232,11 @@ export default function TransparencyPage() {
         return sum + quantity;
       }, 0);
 
+      const student = studentIndex.get(donation.studentId);
+      const grade = typeof student?.grade === "number" ? student.grade : extractGradeFromClass(donation.studentClass);
+      const classSource = student?.class || donation.studentClass || "Não informado";
+      const className = formatClassLabel(grade, classSource);
+
       const productSummary = donation.products
         .map((product) => product.product)
         .filter(Boolean)
@@ -171,33 +244,48 @@ export default function TransparencyPage() {
 
       return {
         id: donation.id,
-        className: donation.studentClass || "Não informado",
+        className,
         displayName: anonymizeName(donation.studentName),
         searchName: donation.studentName?.toLowerCase() || "",
         productSummary,
         totalQuantity,
         date,
+        grade,
       };
     });
-  }, [donations]);
+  }, [donations, studentIndex]);
 
   const classPerformance = useMemo<ClassPerformanceRow[]>(() => {
-    const accumulator = new Map<string, { total: number; donationCount: number; donors: Set<string> }>();
+    const accumulator = new Map<
+      string,
+      { total: number; donationCount: number; donors: Set<string>; grade?: number }
+    >();
 
     donations.forEach((donation) => {
-      const className = donation.studentClass || "Não informado";
+      const student = studentIndex.get(donation.studentId);
+      const grade = typeof student?.grade === "number" ? student.grade : extractGradeFromClass(donation.studentClass);
+      const classSource = student?.class || donation.studentClass || "Não informado";
+      const className = formatClassLabel(grade, classSource);
       const donationTotal = donation.products.reduce((sum, product) => {
         const quantity = typeof product.quantity === "number" ? product.quantity : Number(product.quantity) || 0;
         return sum + quantity;
       }, 0);
 
       if (!accumulator.has(className)) {
-        accumulator.set(className, { total: 0, donationCount: 0, donors: new Set<string>() });
+        accumulator.set(className, {
+          total: 0,
+          donationCount: 0,
+          donors: new Set<string>(),
+          grade,
+        });
       }
 
       const entry = accumulator.get(className)!;
       entry.total += donationTotal;
       entry.donationCount += 1;
+      if (grade !== undefined) {
+        entry.grade = grade;
+      }
 
       const donorKey = donation.studentId || donation.studentName || donation.id;
       if (donorKey) {
@@ -211,9 +299,39 @@ export default function TransparencyPage() {
         totalQuantity: data.total,
         donationCount: data.donationCount,
         donors: data.donors.size,
+        grade: data.grade,
       }))
       .sort((a, b) => b.totalQuantity - a.totalQuantity);
-  }, [donations]);
+  }, [donations, studentIndex]);
+
+  const gradeOptions = useMemo(() => {
+    const grades = new Set<number>();
+    classPerformance.forEach((entry) => {
+      if (typeof entry.grade === "number" && !Number.isNaN(entry.grade)) {
+        grades.add(entry.grade);
+      }
+    });
+    return Array.from(grades.values()).sort((a, b) => a - b);
+  }, [classPerformance]);
+
+  useEffect(() => {
+    setSelectedGrade((previous) => {
+      if (gradeOptions.length === 0) {
+        return null;
+      }
+      if (previous !== null && gradeOptions.includes(previous)) {
+        return previous;
+      }
+      return gradeOptions[0] ?? null;
+    });
+  }, [gradeOptions]);
+
+  const filteredClassPerformance = useMemo(() => {
+    if (selectedGrade === null) {
+      return classPerformance;
+    }
+    return classPerformance.filter((entry) => entry.grade === selectedGrade);
+  }, [classPerformance, selectedGrade]);
 
   const totalItems = useMemo(() => {
     return donations.reduce((sum, donation) => {
@@ -280,8 +398,10 @@ export default function TransparencyPage() {
   }, [donationRows, searchTerm, selectedClass]);
 
   const donationsByClassData = useMemo(() => {
-    return classPerformance.slice(0, 7).map(({ className, totalQuantity }) => ({ className, total: totalQuantity }));
-  }, [classPerformance]);
+    return filteredClassPerformance
+      .slice(0, 7)
+      .map(({ className, totalQuantity }) => ({ className, total: totalQuantity }));
+  }, [filteredClassPerformance]);
 
   const publicAuditLogs = useMemo(() => {
     return auditLogs
@@ -315,9 +435,9 @@ export default function TransparencyPage() {
     }
   };
 
-  const isLoading = donationsLoading || auditLoading || settingsLoading;
+  const isLoading = donationsLoading || auditLoading || settingsLoading || studentsLoading;
   const engagedClasses = classPerformance.length;
-  const topClassTotal = classPerformance[0]?.totalQuantity ?? 0;
+  const topClassTotal = filteredClassPerformance[0]?.totalQuantity ?? 0;
   const hasGoalConfigured = goalValue > 0;
 
   return (
@@ -500,12 +620,35 @@ export default function TransparencyPage() {
                 </CardContent>
               </Card>
               <Card className="border-none bg-white/80 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur xl:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-slate-900">
-                    <Trophy className="h-5 w-5 text-amber-500" />
-                    Ranking visual por turma
-                  </CardTitle>
-                  <CardDescription>Turmas com maior volume de itens registrados.</CardDescription>
+                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-slate-900">
+                      <Trophy className="h-5 w-5 text-amber-500" />
+                      Ranking visual por turma
+                    </CardTitle>
+                    <CardDescription>
+                      {selectedGrade
+                        ? `Turmas do ${selectedGrade}º ano com maior volume de itens registrados.`
+                        : "Turmas com maior volume de itens registrados."}
+                    </CardDescription>
+                  </div>
+                  {gradeOptions.length > 0 ? (
+                    <Select
+                      value={selectedGrade !== null ? selectedGrade.toString() : undefined}
+                      onValueChange={(value) => setSelectedGrade(Number(value))}
+                    >
+                      <SelectTrigger className="sm:w-[180px]">
+                        <SelectValue placeholder="Selecione a série" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {gradeOptions.map((grade) => (
+                          <SelectItem key={grade} value={grade.toString()}>
+                            {grade}º ano
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : null}
                 </CardHeader>
                 <CardContent>
                   {donationsByClassData.length > 0 ? (
@@ -521,7 +664,11 @@ export default function TransparencyPage() {
                       </ResponsiveContainer>
                     </div>
                   ) : (
-                    <p className="text-sm text-slate-500">Ainda não há dados suficientes para gerar o gráfico.</p>
+                    <p className="text-sm text-slate-500">
+                      {selectedGrade
+                        ? `Ainda não há dados suficientes para gerar o gráfico do ${selectedGrade}º ano.`
+                        : "Ainda não há dados suficientes para gerar o gráfico."}
+                    </p>
                   )}
                 </CardContent>
               </Card>
@@ -529,27 +676,52 @@ export default function TransparencyPage() {
 
             <section>
               <Card className="border-none bg-white/85 shadow-[0_20px_50px_rgba(15,23,42,0.08)] backdrop-blur">
-                <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
+                <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
                     <CardTitle className="flex items-center gap-2 text-slate-900">
                       <Trophy className="h-5 w-5 text-amber-500" />
                       Ranking completo das turmas
                     </CardTitle>
-                    <CardDescription>Ordem definida automaticamente pela quantidade total de itens doados.</CardDescription>
+                    <CardDescription>
+                      {selectedGrade
+                        ? `Ordem definida automaticamente pelas doações das turmas do ${selectedGrade}º ano.`
+                        : "Ordem definida automaticamente pela quantidade total de itens doados."}
+                    </CardDescription>
                   </div>
-                  <Badge variant="outline" className="rounded-full border-slate-200/80 bg-white/70 px-4 py-1 text-xs font-medium text-slate-600">
-                    Atualizado em tempo real
-                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="rounded-full border-slate-200/80 bg-white/70 px-4 py-1 text-xs font-medium text-slate-600">
+                      Atualizado em tempo real
+                    </Badge>
+                    {gradeOptions.length > 0 ? (
+                      <Select
+                        value={selectedGrade !== null ? selectedGrade.toString() : undefined}
+                        onValueChange={(value) => setSelectedGrade(Number(value))}
+                      >
+                        <SelectTrigger className="sm:w-[180px]">
+                          <SelectValue placeholder="Selecione a série" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {gradeOptions.map((grade) => (
+                            <SelectItem key={grade} value={grade.toString()}>
+                              {grade}º ano
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : null}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {classPerformance.length === 0 ? (
+                  {filteredClassPerformance.length === 0 ? (
                     <p className="text-sm text-slate-500">
-                      Nenhuma turma registrada até o momento. Assim que as doações forem lançadas, o ranking será atualizado aqui.
+                      {selectedGrade
+                        ? `Nenhuma turma do ${selectedGrade}º ano registrada até o momento. Assim que as doações forem lançadas, o ranking será atualizado aqui.`
+                        : "Nenhuma turma registrada até o momento. Assim que as doações forem lançadas, o ranking será atualizado aqui."}
                     </p>
                   ) : (
                     <div className="space-y-4">
                       <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
-                        {classPerformance.map((entry, index) => {
+                        {filteredClassPerformance.map((entry, index) => {
                           const progressValue = topClassTotal > 0 ? Math.min(100, (entry.totalQuantity / topClassTotal) * 100) : 0;
                           return (
                             <div
