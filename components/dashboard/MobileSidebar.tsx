@@ -75,6 +75,7 @@ const menuItems = [
   },
   {
     title: "Ajuda",
+    label: "Ajuda",
     href: "/dashboard/ajuda",
     icon: LifeBuoy,
     roles: ["admin", "user"],
@@ -136,6 +137,7 @@ export function MobileSidebar() {
             {visibleMenuItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
+              const label = item.label ?? item.title;
 
               return (
                 <Link
@@ -150,7 +152,7 @@ export function MobileSidebar() {
                   )}
                 >
                   <Icon className="h-5 w-5" />
-                  {item.title}
+                  {label}
                 </Link>
               );
             })}
