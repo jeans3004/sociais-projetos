@@ -26,8 +26,6 @@ export default function DashboardPage() {
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
   const [rankings, setRankings] = useState<ClassRanking[]>([]);
-  const [grades, setGrades] = useState<number[]>([]);
-  const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
@@ -66,37 +64,9 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (students.length === 0) {
-      setGrades([]);
-      setSelectedGrade(null);
-      setRankings([]);
-      return;
-    }
-
-    const uniqueGrades = Array.from(
-      new Set(students.map((student) => student.grade))
-    )
-      .filter((grade) => typeof grade === "number" && !Number.isNaN(grade))
-      .sort((a, b) => a - b);
-
-    setGrades(uniqueGrades);
-    setSelectedGrade((prev) => {
-      if (prev !== null && uniqueGrades.includes(prev)) {
-        return prev;
-      }
-      return uniqueGrades[0] ?? null;
-    });
-  }, [students]);
-
-  useEffect(() => {
-    if (selectedGrade === null) {
-      setRankings([]);
-      return;
-    }
-
-    const rankingsData = getClassRankings(students, selectedGrade);
+    const rankingsData = getClassRankings(donations, students);
     setRankings(rankingsData);
-  }, [students, selectedGrade]);
+  }, [donations, students]);
 
   if (loading) {
     return (
@@ -169,12 +139,7 @@ export default function DashboardPage() {
           <MonthlyChart data={monthlyData} />
         </div>
         <div className="lg:col-span-3">
-          <ClassRankingCard
-            rankings={rankings}
-            grades={grades}
-            selectedGrade={selectedGrade ?? undefined}
-            onGradeChange={(grade) => setSelectedGrade(grade)}
-          />
+          <ClassRankingCard rankings={rankings} />
         </div>
       </div>
 
