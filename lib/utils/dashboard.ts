@@ -110,30 +110,46 @@ export function getMonthlyData(donations: Donation[]): MonthlyData[] {
  * Get class rankings based on total donations
  */
 export function getClassRankings(
-  students: Student[],
-  grade?: number
+  donations: Donation[],
+  students: Student[]
 ): ClassRanking[] {
+  const studentMap = new Map(students.map((student) => [student.id, student]));
   const classMap = new Map<
     string,
-    { totalDonations: number; donorCount: number }
+    { totalDonations: number; donorIds: Set<string> }
   >();
 
-  students.forEach((student) => {
-    if (!student.totalDonations || student.totalDonations <= 0) {
+  donations.forEach((donation) => {
+    const student = studentMap.get(donation.studentId);
+
+    const classLabel = student
+      ? `${student.grade}º ${student.class}`
+      : donation.studentClass ?? null;
+
+    if (!classLabel) {
       return;
     }
 
-    if (grade !== undefined && student.grade !== grade) {
+    const itemsDonated = donation.products.reduce(
+      (sum, product) => sum + product.quantity,
+      0
+    );
+
+    if (itemsDonated <= 0) {
       return;
     }
 
-    const classLabel = `${student.grade}º ${student.class}`;
     const existing =
-      classMap.get(classLabel) || { totalDonations: 0, donorCount: 0 };
+      classMap.get(classLabel) || {
+        totalDonations: 0,
+        donorIds: new Set<string>(),
+      };
+
+    existing.donorIds.add(donation.studentId);
 
     classMap.set(classLabel, {
-      totalDonations: existing.totalDonations + student.totalDonations,
-      donorCount: existing.donorCount + 1,
+      totalDonations: existing.totalDonations + itemsDonated,
+      donorIds: existing.donorIds,
     });
   });
 
@@ -141,7 +157,7 @@ export function getClassRankings(
     .map(([className, data]) => ({
       class: className,
       totalDonated: data.totalDonations,
-      donorCount: data.donorCount,
+      donorCount: data.donorIds.size,
     }))
     .sort((a, b) => b.totalDonated - a.totalDonated)
     .slice(0, 5);
