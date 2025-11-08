@@ -134,18 +134,29 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="px-3 pb-4">
-        <Link
-          href="/transparencia"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="group block"
-        >
-          <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/20">
-            <ShieldCheck className="h-5 w-5 transition group-hover:scale-110" />
-            Portal da Transparência
-          </div>
-        </Link>
+      <div className="px-3 pb-4 space-y-3">
+        <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Recursos rápidos
+        </p>
+        <div className="space-y-2">
+          <Link
+            href="/transparencia"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group block"
+          >
+            <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/10 px-3 py-3 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/20">
+              <ShieldCheck className="h-5 w-5 transition group-hover:scale-110" />
+              Portal da Transparência
+            </div>
+          </Link>
+          <Link href="/dashboard/ajuda" className="group block">
+            <div className="flex items-center gap-3 rounded-lg border border-primary/10 bg-card px-3 py-3 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-primary/5">
+              <LifeBuoy className="h-5 w-5 text-primary transition group-hover:scale-110" />
+              Central de Ajuda
+            </div>
+          </Link>
+        </div>
       </div>
 
       <div className="p-3 border-t">
