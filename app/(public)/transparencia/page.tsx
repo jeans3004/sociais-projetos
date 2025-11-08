@@ -503,10 +503,11 @@ export default function TransparencyPage() {
   }, [donationRows, searchTerm, selectedClass]);
 
   const donationsByClassData = useMemo(() => {
-    return filteredClassPerformance
+    return [...classPerformance]
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
       .slice(0, 7)
       .map(({ className, totalQuantity }) => ({ className, total: totalQuantity }));
-  }, [filteredClassPerformance]);
+  }, [classPerformance]);
 
   const publicAuditLogs = useMemo(() => {
     return auditLogs
@@ -763,28 +764,9 @@ export default function TransparencyPage() {
                       Ranking visual por turma
                     </CardTitle>
                     <CardDescription>
-                      {selectedGrade
-                        ? `Turmas do ${selectedGrade}º ano com maior volume de itens registrados.`
-                        : "Turmas com maior volume de itens registrados."}
+                      Turmas com maior volume de itens registrados.
                     </CardDescription>
                   </div>
-                  {gradeOptions.length > 0 ? (
-                    <Select
-                      value={selectedGrade !== null ? selectedGrade.toString() : undefined}
-                      onValueChange={(value) => setSelectedGrade(Number(value))}
-                    >
-                      <SelectTrigger className="sm:w-[180px]">
-                        <SelectValue placeholder="Selecione a série" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {gradeOptions.map((grade) => (
-                          <SelectItem key={grade} value={grade.toString()}>
-                            {grade}º ano
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : null}
                 </CardHeader>
                 <CardContent>
                   {donationsByClassData.length > 0 ? (
@@ -801,9 +783,7 @@ export default function TransparencyPage() {
                     </div>
                   ) : (
                     <p className="text-sm text-slate-500">
-                      {selectedGrade
-                        ? `Ainda não há dados suficientes para gerar o gráfico do ${selectedGrade}º ano.`
-                        : "Ainda não há dados suficientes para gerar o gráfico."}
+                      Ainda não há dados suficientes para gerar o gráfico.
                     </p>
                   )}
                 </CardContent>
