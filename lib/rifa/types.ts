@@ -57,6 +57,11 @@ export interface RaffleTicket {
   redeemedAt?: Timestamp;
 }
 
+export interface RaffleActionContext {
+  actorId: string;
+  actorName?: string;
+}
+
 export interface StudentCampaignStats {
   id: string; // `${campaignId}_${studentId}`
   campaignId: string;

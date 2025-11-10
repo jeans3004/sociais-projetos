@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase/config";
 import {
   AssignTicketsInput,
   DeterministicDrawInput,
+  RaffleActionContext,
   RegisterDonationInput,
 } from "@/lib/rifa/types";
 import { computeIntegrityHash } from "@/lib/rifa/hash";
@@ -24,16 +25,11 @@ import {
   getDocs,
 } from "firebase/firestore";
 
-interface ActionContext {
-  actorId: string;
-  actorName?: string;
-}
-
 async function logEvent(
   action: string,
   before: unknown,
   after: unknown,
-  context: ActionContext,
+  context: RaffleActionContext,
   campaignId: string,
   studentId?: string
 ) {
@@ -52,7 +48,7 @@ async function logEvent(
 
 export async function assignTicketsAction(
   input: AssignTicketsInput,
-  context: ActionContext
+  context: RaffleActionContext
 ) {
   const assignedAt = Timestamp.now();
   const ticketsRef = collection(db, "tickets");
@@ -129,7 +125,7 @@ export async function assignTicketsAction(
 
 export async function registerDonationAction(
   input: RegisterDonationInput,
-  context: ActionContext
+  context: RaffleActionContext
 ) {
   const donationsRef = collection(db, "donations");
   const createdAt = Timestamp.now();
@@ -183,7 +179,7 @@ export async function registerDonationAction(
 
 export async function runDeterministicDrawAction(
   input: DeterministicDrawInput,
-  context: ActionContext
+  context: RaffleActionContext
 ) {
   const ticketsRef = collection(db, "tickets");
   const eligibleQuery = query(
