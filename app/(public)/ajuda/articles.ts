@@ -1,4 +1,4 @@
-import { Compass, LayoutDashboard, GraduationCap, HandCoins, FileSpreadsheet, Settings, LifeBuoy } from "lucide-react";
+import { Compass, LayoutDashboard, GraduationCap, Coins, FileSpreadsheet, Settings, LifeBuoy } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface HelpArticle {
@@ -45,7 +45,7 @@ export const HELP_ARTICLES: HelpArticle[] = [
       "Aprenda a registrar novas doações, aplicar filtros, corrigir lançamentos e manter o histórico organizado.",
     category: "Operações",
     keywords: ["doação", "registro", "filtros", "excluir"],
-    icon: HandCoins,
+    icon: Coins,
   },
   {
     slug: "relatorios",

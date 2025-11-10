@@ -1,12 +1,5 @@
 import Link from "next/link";
-import {
-  BookOpenCheck,
-  Compass,
-  LifeBuoy,
-  MessageCircleQuestion,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { BookOpenCheck, Compass, LifeBuoy, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
 
 import { HELP_ARTICLES, FAQ_ITEMS } from "@/app/(public)/ajuda/articles";
 import HelpAccordion from "@/app/(public)/ajuda/components/HelpAccordion";
@@ -56,7 +49,7 @@ const SUPPORT_HIGHLIGHTS = [
     actionLabel: "Abrir Central de Ajuda",
   },
   {
-    icon: MessageCircleQuestion,
+    icon: MessageCircle,
     label: "FAQ resolutiva",
     description: "Encontre respostas rápidas para dúvidas sobre login, exportações e organização de turmas.",
     href: "/ajuda/faq",
@@ -98,7 +91,7 @@ export default function AjudaPage() {
             </Button>
             <Button asChild size="lg" variant="ghost" className="border-white/40 bg-white/10 text-white hover:bg-white/20">
               <Link href="/ajuda/faq">
-                <MessageCircleQuestion className="mr-2 h-5 w-5" aria-hidden />
+                <MessageCircle className="mr-2 h-5 w-5" aria-hidden />
                 Consultar FAQ rápida
               </Link>
             </Button>
