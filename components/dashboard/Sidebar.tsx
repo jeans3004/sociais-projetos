@@ -14,6 +14,7 @@ import {
   Ticket,
   ShieldCheck,
   LifeBuoy,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/firebase/auth";
@@ -69,6 +70,13 @@ const menuItems = [
     label: "Ajuda",
     href: "/dashboard/ajuda",
     icon: LifeBuoy,
+    roles: ["admin", "user"],
+  },
+  {
+    title: "Central de Ajuda",
+    label: "Central de Ajuda",
+    href: "/help-center",
+    icon: BookOpen,
     roles: ["admin", "user"],
   },
 ];
