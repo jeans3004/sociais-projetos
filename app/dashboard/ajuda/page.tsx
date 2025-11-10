@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { BookOpenCheck, Compass, LifeBuoy, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
 

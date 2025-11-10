@@ -200,68 +200,19 @@ const helpCenterArticles = [
   },
 ] as const;
 
-const faqItems = [
-  {
-    id: "faq-support",
-    question: "Como entro em contato com o suporte técnico?",
-    answer: (
-      <div className="space-y-2">
-        <p>
-          Abra um chamado pelo botão “Falar com o suporte” disponível no canto inferior direito
-          do sistema ou envie um e-mail para <strong>suporte@sociais.app</strong> descrevendo o
-          contexto.
-        </p>
-        <p>
-          Chamados críticos (indisponibilidade total) recebem resposta em até 1 hora útil. Questões
-          operacionais são respondidas em até 1 dia útil.
-        </p>
-      </div>
-    ),
-  },
-  {
-    id: "faq-training",
-    question: "Existe treinamento para novos integrantes da equipe?",
-    answer: (
-      <div className="space-y-2">
-        <p>
-          Sim! Disponibilizamos sessões mensais de onboarding e uma biblioteca com vídeos curtos.
-          Utilize o formulário de agendamento em Configurações &gt; Treinamentos para garantir uma
-          vaga.
-        </p>
-        <p>
-          Você também pode compartilhar os artigos acima como material de apoio inicial.
-        </p>
-      </div>
-    ),
-  },
-  {
-    id: "faq-data",
-    question: "Como solicito a remoção ou anonimização de dados?",
-    answer: (
-      <div className="space-y-2">
-        <p>
-          Acesse Configurações &gt; Privacidade e siga o fluxo de solicitação, indicando o conjunto de
-          dados a ser removido ou anonimizado.
-        </p>
-        <p>
-          Um membro da equipe de compliance confirmará o atendimento e notificará os responsáveis em
-          até 72 horas.
-        </p>
-      </div>
-    ),
-  },
-] as const;
-
 type HelpCenterArticle = (typeof helpCenterArticles)[number];
 
 type HelpCenterSection = HelpCenterArticle["sections"][number];
 
 function normalizeSection(section: HelpCenterSection) {
-  const texts = [section.heading, section.description ?? ""];
-  if (section.bullets) {
+  const texts: string[] = [section.heading];
+  if ('description' in section && section.description) {
+    texts.push(section.description);
+  }
+  if ('bullets' in section && section.bullets) {
     texts.push(section.bullets.join(" "));
   }
-  if (section.steps) {
+  if ('steps' in section && section.steps) {
     texts.push(section.steps.join(" "));
   }
   return texts.join(" ");
@@ -286,8 +237,60 @@ function matchesQuery(article: HelpCenterArticle, query: string) {
 }
 
 export function HelpCenterContent() {
-  const [activeArticleId, setActiveArticleId] = useState(helpCenterArticles[0].id);
+  const [activeArticleId, setActiveArticleId] = useState<string>(helpCenterArticles[0].id);
   const [query, setQuery] = useState("");
+
+  const faqItems = [
+    {
+      id: "faq-support",
+      question: "Como entro em contato com o suporte técnico?",
+      answer: (
+        <div className="space-y-2">
+          <p>
+            Abra um chamado pelo botão &quot;Falar com o suporte&quot; disponível no canto inferior direito
+            do sistema ou envie um e-mail para <strong>suporte@sociais.app</strong> descrevendo o
+            contexto.
+          </p>
+          <p>
+            Chamados críticos (indisponibilidade total) recebem resposta em até 1 hora útil. Questões
+            operacionais são respondidas em até 1 dia útil.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "faq-training",
+      question: "Existe treinamento para novos integrantes da equipe?",
+      answer: (
+        <div className="space-y-2">
+          <p>
+            Sim! Disponibilizamos sessões mensais de onboarding e uma biblioteca com vídeos curtos.
+            Utilize o formulário de agendamento em Configurações &gt; Treinamentos para garantir uma
+            vaga.
+          </p>
+          <p>
+            Você também pode compartilhar os artigos acima como material de apoio inicial.
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "faq-data",
+      question: "Como solicito a remoção ou anonimização de dados?",
+      answer: (
+        <div className="space-y-2">
+          <p>
+            Acesse Configurações &gt; Privacidade e siga o fluxo de solicitação, indicando o conjunto de
+            dados a ser removido ou anonimizado.
+          </p>
+          <p>
+            Um membro da equipe de compliance confirmará o atendimento e notificará os responsáveis em
+            até 72 horas.
+          </p>
+        </div>
+      ),
+    },
+  ];
 
   const activeArticle = useMemo(
     () => helpCenterArticles.find((article) => article.id === activeArticleId) ?? helpCenterArticles[0],
@@ -381,12 +384,12 @@ export function HelpCenterContent() {
               <article key={section.heading} className="space-y-4">
                 <div>
                   <h2 className="text-xl font-semibold text-foreground">{section.heading}</h2>
-                  {section.description ? (
+                  {'description' in section && section.description ? (
                     <p className="mt-2 text-muted-foreground">{section.description}</p>
                   ) : null}
                 </div>
 
-                {section.steps ? (
+                {'steps' in section && section.steps ? (
                   <ol className="space-y-3 rounded-lg border border-muted-foreground/20 bg-muted/30 p-4 text-muted-foreground">
                     {section.steps.map((step, index) => (
                       <li key={step} className="flex gap-3">
@@ -399,7 +402,7 @@ export function HelpCenterContent() {
                   </ol>
                 ) : null}
 
-                {section.bullets ? (
+                {'bullets' in section && section.bullets ? (
                   <ul className="list-disc space-y-2 pl-6 text-muted-foreground">
                     {section.bullets.map((item) => (
                       <li key={item}>{item}</li>

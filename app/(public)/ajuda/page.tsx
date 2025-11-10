@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { HELP_ARTICLES } from "./articles";
 import HelpCenterContent from "./components/HelpCenterContent";
 
 export const metadata: Metadata = {
@@ -10,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function HelpCenterPage() {
-  return <HelpCenterContent articles={HELP_ARTICLES} />;
+  return <HelpCenterContent />;
 }
