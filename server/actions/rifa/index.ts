@@ -67,12 +67,13 @@ export async function assignTicketsAction(
   const updatedTicketIds: string[] = [];
   const updatedTicketNumbers: number[] = [];
 
-  await runTransaction(db, async (transaction) => {
-    const availableSnapshot = await transaction.get(ticketQuery);
-    if (availableSnapshot.size < input.quantity) {
-      throw new Error("Quantidade de rifas indisponível para atribuição");
-    }
+  // First, get available tickets outside transaction
+  const availableSnapshot = await getDocs(ticketQuery);
+  if (availableSnapshot.size < input.quantity) {
+    throw new Error("Quantidade de rifas indisponível para atribuição");
+  }
 
+  await runTransaction(db, async (transaction) => {
     availableSnapshot.docs.forEach((ticketDoc) => {
       updatedTicketIds.push(ticketDoc.id);
       const data = ticketDoc.data();

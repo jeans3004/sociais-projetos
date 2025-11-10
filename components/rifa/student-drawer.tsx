@@ -36,11 +36,14 @@ interface StudentDrawerProps {
 
 function toDate(value?: Timestamp | Date | null) {
   if (!value) return undefined;
+  if (value instanceof Date) {
+    return value;
+  }
   if (value instanceof Timestamp) {
     return value.toDate();
   }
-  if (typeof (value as Timestamp).toDate === "function") {
-    return (value as Timestamp).toDate();
+  if (typeof (value as any).toDate === "function") {
+    return (value as any).toDate();
   }
   return value as Date;
 }

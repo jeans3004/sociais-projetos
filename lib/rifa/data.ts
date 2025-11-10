@@ -167,5 +167,5 @@ export async function getCampaignById(
   const ref = doc(db, "raffleCampaigns", campaignId);
   const snapshot = await getDoc(ref);
   if (!snapshot.exists()) return null;
-  return { id: snapshot.id, ...(snapshot.data() as RaffleCampaign) };
+  return { ...(snapshot.data() as RaffleCampaign), id: snapshot.id };
 }

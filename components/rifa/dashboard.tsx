@@ -345,11 +345,12 @@ export function RifaDashboard({
     donations
       .filter((donation) => donation.studentId === selectedStudentId)
       .forEach((donation) => {
+        const totalItems = donation.products?.reduce((sum, p) => sum + p.quantity, 0) ?? 0;
         items.push({
           id: donation.id,
           type: "donation",
           timestamp: donation.createdAt,
-          description: `Doação de ${donation.quantity} itens (${donation.amount})`,
+          title: `Doação de ${totalItems} itens - ${donation.ticketsGranted ?? 0} rifas concedidas`,
         });
       });
     tickets
@@ -360,7 +361,7 @@ export function RifaDashboard({
             id: `${ticket.id}-assigned`,
             type: "assignment",
             timestamp: ticket.assignedAt,
-            description: `Bilhete #${ticket.number} atribuído`,
+            title: `Bilhete #${ticket.number} atribuído`,
           });
         }
         if (ticket.redeemedAt) {
@@ -368,7 +369,7 @@ export function RifaDashboard({
             id: `${ticket.id}-redeemed`,
             type: "redemption",
             timestamp: ticket.redeemedAt,
-            description: `Bilhete #${ticket.number} resgatado`,
+            title: `Bilhete #${ticket.number} resgatado`,
           });
         }
       });
@@ -389,6 +390,17 @@ export function RifaDashboard({
       )
       .sort((a, b) => a.number - b.number);
   }, [tickets, selectedStudentId]);
+
+  const selectedStudentData = useMemo(() => {
+    if (!selectedStudentId) return null;
+    const donation = donations.find(d => d.studentId === selectedStudentId);
+    return donation
+      ? {
+          name: donation.studentName,
+          class: donation.studentClass,
+        }
+      : null;
+  }, [selectedStudentId, donations]);
 
   const campaignSummary = useMemo(() => {
     if (!selectedCampaignId) {
@@ -415,11 +427,11 @@ export function RifaDashboard({
   }, []);
 
   const handleDonationSubmit = useCallback(
-    (data: DonationFormData) => {
+    async (data: DonationFormData) => {
       if (!selectedCampaignId || !user) return;
       const context: RaffleActionContext = {
-        uid: user.uid,
-        campaignId: selectedCampaignId,
+        actorId: user.id,
+        actorName: user.name,
       };
       startTransition(async () => {
         try {
@@ -427,13 +439,14 @@ export function RifaDashboard({
             {
               campaignId: selectedCampaignId,
               studentId: data.studentId,
-              studentName: data.studentName,
-              studentClass: data.className,
-              items: data.items,
-              quantity: data.quantity,
-              amount: data.amount,
-              channel: data.channel,
+              products: data.products.map(p => ({
+                product: p.product,
+                quantity: p.quantity,
+                unit: p.unit,
+              })),
               notes: data.notes,
+              receiptUrl: data.receiptUrl,
+              donationDate: data.date,
             },
             context
           );
@@ -462,44 +475,38 @@ export function RifaDashboard({
   );
 
   const handleAssignTickets = useCallback(
-    async (studentId: string, donationId: string | null, quantity: number) => {
-      if (!selectedCampaignId || !user) return;
+    (input: AssignTicketsInput) => {
+      if (!user) return;
       const context: RaffleActionContext = {
-        uid: user.uid,
-        campaignId: selectedCampaignId,
+        actorId: user.id,
+        actorName: user.name,
       };
-      try {
-        const { ticketNumbers } = await onAssignTickets(
-          {
-            campaignId: selectedCampaignId,
-            studentId,
-            donationId: donationId ?? undefined,
-            quantity,
-          },
-          context
-        );
-        toast({
-          title: "Rifas atribuídas",
-          description: `Bilhetes ${ticketNumbers.join(", ")} agora são do aluno`,
-        });
-      } catch (error) {
-        console.error(error);
-        toast({
-          title: "Erro ao atribuir",
-          description: "Não foi possível completar a ação.",
-          variant: "destructive",
-        });
-      }
+      startTransition(async () => {
+        try {
+          const { ticketNumbers } = await onAssignTickets(input, context);
+          toast({
+            title: "Rifas atribuídas",
+            description: `Bilhetes ${ticketNumbers.join(", ")} agora são do aluno`,
+          });
+        } catch (error) {
+          console.error(error);
+          toast({
+            title: "Erro ao atribuir",
+            description: "Não foi possível completar a ação.",
+            variant: "destructive",
+          });
+        }
+      });
     },
-    [selectedCampaignId, user, onAssignTickets, toast]
+    [user, onAssignTickets, toast]
   );
 
   const handleRunDraw = useCallback(
     async (seed: string, winnersCount: number) => {
       if (!selectedCampaignId || !user) return;
       const context: RaffleActionContext = {
-        uid: user.uid,
-        campaignId: selectedCampaignId,
+        actorId: user.id,
+        actorName: user.name,
       };
       try {
         const { winners } = await onRunDraw(
@@ -753,8 +760,8 @@ export function RifaDashboard({
                       <TableRow>
                         <TableHead>Aluno</TableHead>
                         <TableHead>Itens</TableHead>
-                        <TableHead>Quantidade</TableHead>
-                        <TableHead>Canal</TableHead>
+                        <TableHead>Rifas</TableHead>
+                        <TableHead>Registrado por</TableHead>
                         <TableHead>Data</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -771,9 +778,13 @@ export function RifaDashboard({
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>{donation.items}</TableCell>
-                          <TableCell>{donation.quantity}</TableCell>
-                          <TableCell>{donation.channel ?? "N/A"}</TableCell>
+                          <TableCell>
+                            {donation.products?.length
+                              ? `${donation.products.length} produto(s)`
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell>{donation.ticketsGranted ?? 0} rifas</TableCell>
+                          <TableCell>{donation.registeredByName ?? "Sistema"}</TableCell>
                           <TableCell>{formatTimestamp(donation.createdAt)}</TableCell>
                         </TableRow>
                       ))}
@@ -1119,15 +1130,15 @@ export function RifaDashboard({
                     variant={
                       item.status === "active"
                         ? "default"
-                        : item.status === "completed"
+                        : item.status === "closed"
                         ? "secondary"
                         : "outline"
                     }
                   >
                     {item.status === "active"
                       ? "Ativa"
-                      : item.status === "completed"
-                      ? "Concluída"
+                      : item.status === "closed"
+                      ? "Encerrada"
                       : "Rascunho"}
                   </Badge>
                 </div>
@@ -1141,8 +1152,8 @@ export function RifaDashboard({
                     <p>{formatTimestamp(item.endDate)}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Meta</p>
-                    <p>{item.goal ?? "-"}</p>
+                    <p className="text-muted-foreground">Total de Rifas</p>
+                    <p>{item.ticketsTotal ?? "-"}</p>
                   </div>
                 </div>
               </button>
@@ -1153,17 +1164,17 @@ export function RifaDashboard({
 
       <DonationForm
         open={isDonationFormOpen}
-        onOpenChange={setIsDonationFormOpen}
+        onClose={() => setIsDonationFormOpen(false)}
         onSubmit={handleDonationSubmit}
-        isLoading={isPending}
       />
 
       <StudentDrawer
         open={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
-        studentId={selectedStudentId}
+        studentName={selectedStudentData?.name}
+        studentClass={selectedStudentData?.class}
         campaignId={selectedCampaignId}
-        inventory={studentInventory}
+        tickets={studentInventory}
         timeline={studentTimeline}
         onAssignTickets={handleAssignTickets}
       />
