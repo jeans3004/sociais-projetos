@@ -523,6 +523,77 @@ export default function TransparencyPage() {
       });
   }, [auditLogs]);
 
+  const engagedClasses = classPerformance.length;
+  const topClassTotal = filteredClassPerformance[0]?.totalQuantity ?? 0;
+  const hasGoalConfigured = goalValue > 0;
+
+  const heroHighlights = useMemo<
+    {
+      id: string;
+      label: string;
+      value: string;
+      description: string;
+      icon: LucideIcon;
+      accent: string;
+      accentBg: string;
+    }[]
+  >(
+    () => {
+      const goalHighlightDescription = hasGoalConfigured
+        ? remainingGoal > 0
+          ? `${formatNumber(remainingGoal)} itens para atingir a meta`
+          : "Meta alcançada!"
+        : "Configure uma meta para acompanhar o progresso.";
+
+      return [
+        {
+          id: "goal",
+          label: "Meta do mês",
+          value: hasGoalConfigured
+            ? `${formatNumber(goalProgress, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}%`
+            : "Não definida",
+          description: goalHighlightDescription,
+          icon: Target,
+          accent: "text-rose-500",
+          accentBg: "bg-rose-500/10",
+        },
+        {
+          id: "total-items",
+          label: "Itens contabilizados",
+          value: formatNumber(totalItems),
+          description: `${formatNumber(estimatedWeight, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })} kg em estimativa`,
+          icon: Package,
+          accent: "text-sky-500",
+          accentBg: "bg-sky-500/10",
+        },
+        {
+          id: "engagement",
+          label: "Turmas engajadas",
+          value: formatNumber(engagedClasses),
+          description:
+            uniqueDonors > 0
+              ? `${formatNumber(uniqueDonors)} participantes já contribuíram`
+              : "Aguardando as primeiras contribuições.",
+          icon: Users2,
+          accent: "text-indigo-500",
+          accentBg: "bg-indigo-500/10",
+        },
+      ];
+    },
+    [
+      engagedClasses,
+      estimatedWeight,
+      goalProgress,
+      hasGoalConfigured,
+      remainingGoal,
+      totalItems,
+      uniqueDonors,
+    ]
+  );
+
   const onSubmit = async (data: ContestacaoFormData) => {
     try {
       await createContestacao(data);
@@ -542,9 +613,6 @@ export default function TransparencyPage() {
   };
 
   const isLoading = donationsLoading || auditLoading || settingsLoading || studentsLoading;
-  const engagedClasses = classPerformance.length;
-  const topClassTotal = filteredClassPerformance[0]?.totalQuantity ?? 0;
-  const hasGoalConfigured = goalValue > 0;
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-50">
@@ -552,17 +620,57 @@ export default function TransparencyPage() {
         id="topo-portal"
         className="relative mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16"
       >
-        <div className="mx-auto max-w-3xl text-center">
-          <Badge variant="secondary" className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/80 px-4 py-1.5 text-slate-700 shadow-sm backdrop-blur">
-            <ShieldCheck className="h-4 w-4 text-emerald-500" /> Portal da Transparência
-          </Badge>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
-            Transparência total das doações em tempo real
-          </h1>
-          <p className="mt-4 text-base leading-relaxed text-slate-600">
-            Acompanhe a evolução da campanha, visualize o desempenho de cada turma e saiba exatamente como as contribuições estão impulsionando nossos resultados.
-          </p>
-        </div>
+        <section className="relative overflow-hidden rounded-4xl border border-slate-200/70 bg-white/70 px-6 py-12 shadow-[0_25px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="pointer-events-none absolute -top-32 left-0 h-64 w-64 rounded-full bg-sky-200/50 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-36 right-0 h-72 w-72 rounded-full bg-emerald-200/40 blur-3xl" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.08),_transparent_55%)]" />
+          <div className="relative z-10 mx-auto max-w-3xl text-center">
+            <Badge
+              variant="secondary"
+              className="mb-6 inline-flex items-center gap-2 rounded-full border border-slate-200/70 bg-white/80 px-4 py-1.5 text-slate-700 shadow-sm backdrop-blur"
+            >
+              <ShieldCheck className="h-4 w-4 text-emerald-500" /> Portal da Transparência
+            </Badge>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+              Transparência total das doações em tempo real
+            </h1>
+            <p className="mt-4 text-base leading-relaxed text-slate-600">
+              Acompanhe a evolução da campanha, visualize o desempenho de cada turma e saiba exatamente como as contribuições estão impulsionando nossos resultados.
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Button asChild size="lg" className="rounded-full px-6 shadow-lg shadow-primary/20">
+                <Link href="#indicadores-principais">Ver indicadores principais</Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="rounded-full border-slate-200/80 bg-white/80 px-6 text-slate-700 shadow-sm backdrop-blur transition hover:bg-white"
+              >
+                <Link href="#doacoes-registradas">Consultar doações</Link>
+              </Button>
+            </div>
+          </div>
+          <dl className="relative z-10 mt-10 grid gap-4 sm:grid-cols-3">
+            {heroHighlights.map(({ id, label, value, description, icon: Icon, accent, accentBg }) => (
+              <div
+                key={id}
+                className="group relative overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-5 text-left shadow-[0_20px_45px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:bg-white"
+              >
+                <div className="flex items-center gap-3">
+                  <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${accentBg}`}>
+                    <Icon className={`h-5 w-5 ${accent}`} />
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+                    <p className="text-2xl font-semibold text-slate-900">{value}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-sm text-slate-600">{description}</p>
+              </div>
+            ))}
+          </dl>
+        </section>
 
         {isLoading ? (
           <div className="mt-16 flex justify-center">
