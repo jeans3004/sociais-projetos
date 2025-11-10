@@ -5,7 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import type { FaqItem } from "../articles";
 
 interface HelpAccordionProps {
-  items: FaqItem[];
+  items: readonly FaqItem[];
   defaultValue?: string;
 }
 
