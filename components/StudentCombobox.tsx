@@ -114,13 +114,13 @@ export function StudentCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[500px] p-0" align="start">
-        <Command shouldFilter={false}>
+        <Command shouldFilter={false} className="overflow-hidden">
           <CommandInput
             placeholder="Buscar por nome, série, turma ou matrícula..."
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList className="max-h-[400px] overflow-y-auto">
+          <CommandList className="max-h-[400px] overflow-y-auto overflow-x-hidden">
             {search ? (
               // Modo de busca: mostrar resultados filtrados
               <>

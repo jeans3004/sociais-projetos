@@ -67,3 +67,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom scrollbar styles for CommandList */
+[data-radix-command-list] {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+
+[data-radix-command-list]::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-radix-command-list]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-radix-command-list]::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 4px;
+}
+
+[data-radix-command-list]::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
+}
