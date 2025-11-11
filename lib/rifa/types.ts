@@ -1,10 +1,8 @@
 import { Timestamp } from "firebase/firestore";
 
-export type TicketStatus =
-  | "available"
-  | "assigned"
-  | "redeemed"
-  | "canceled";
+export type TicketStatus = "available" | "assigned" | "drawn";
+
+export type CampaignStatus = "active" | "inactive";
 
 export interface RaffleCampaign {
   id: string;
@@ -12,13 +10,16 @@ export interface RaffleCampaign {
   description?: string;
   startDate?: Timestamp;
   endDate?: Timestamp;
-  status: "draft" | "active" | "closed";
+  status: CampaignStatus;
+  ticketGoal?: number;
   ticketsTotal?: number;
   ticketsAssigned?: number;
-  ticketsRedeemed?: number;
+  ticketsDrawn?: number;
   ticketsAvailable?: number;
   createdAt?: Timestamp;
+  createdBy?: string;
   updatedAt?: Timestamp;
+  updatedBy?: string;
 }
 
 export interface RaffleDonationItem {
@@ -49,12 +50,17 @@ export interface RaffleDonation {
 export interface RaffleTicket {
   id: string;
   campaignId: string;
-  number: number;
+  ticketNumber: number;
+  number?: number;
   status: TicketStatus;
   studentId?: string;
+  studentName?: string;
+  studentClass?: string;
   donationId?: string;
   assignedAt?: Timestamp;
-  redeemedAt?: Timestamp;
+  drawnAt?: Timestamp;
+  createdAt?: Timestamp;
+  createdBy?: string;
 }
 
 export interface RaffleActionContext {
@@ -67,7 +73,7 @@ export interface StudentCampaignStats {
   campaignId: string;
   studentId: string;
   ticketsAssigned: number;
-  ticketsRedeemed: number;
+  ticketsDrawn: number;
   ticketsAvailable?: number;
   updatedAt?: Timestamp;
 }
@@ -75,9 +81,12 @@ export interface StudentCampaignStats {
 export interface RaffleDrawResult {
   id: string;
   campaignId: string;
-  seed: string;
-  winners: string[];
-  integrityHash: string;
+  ticketId: string;
+  ticketNumber: number;
+  studentId: string;
+  studentName?: string;
+  performedBy: string;
+  performedByName?: string;
   createdAt: Timestamp;
 }
 
@@ -90,20 +99,25 @@ export interface RaffleTimelineEntry {
   timestamp: Timestamp;
 }
 
-export interface AssignTicketsInput {
+export interface RegisterRaffleTicketsInput {
   campaignId: string;
   studentId: string;
-  donationId?: string;
+  studentName: string;
+  studentClass?: string;
   quantity: number;
 }
 
-export interface RegisterDonationInput {
-  campaignId: string;
-  studentId: string;
-  products: RaffleDonationItem[];
-  notes?: string;
-  receiptUrl?: string;
-  donationDate?: Date;
+export interface CreateCampaignInput {
+  name: string;
+  description?: string;
+  startDate: Date;
+  endDate: Date;
+  status: CampaignStatus;
+  ticketGoal?: number;
+}
+
+export interface UpdateCampaignInput extends CreateCampaignInput {
+  id: string;
 }
 
 export interface DeterministicDrawInput {
