@@ -1,26 +1,19 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
   useState,
   useTransition,
 } from "react";
-import {
-  ArrowUpRight,
-  Download,
-  FileSpreadsheet,
-  Printer,
-  Sparkles,
-  Ticket,
-  Users,
-} from "lucide-react";
+import { CalendarDays, Info, ListFilter, Plus, Sparkles, Ticket } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Timestamp } from "firebase/firestore";
 
-import { DonationForm } from "@/components/forms/DonationForm";
+import { StudentCombobox } from "@/components/StudentCombobox";
 import { FiltersBar } from "@/components/rifa/filters-bar";
 import { StudentDrawer } from "@/components/rifa/student-drawer";
 import { Badge } from "@/components/ui/badge";
@@ -32,122 +25,174 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
-  AssignTicketsInput,
+  CreateCampaignInput,
   DeterministicDrawInput,
   RaffleActionContext,
   RaffleCampaign,
   RaffleDonation,
   RaffleDrawResult,
   RaffleTicket,
-  RaffleTimelineEntry,
-  RegisterDonationInput,
-  StudentCampaignStats,
+  RegisterRaffleTicketsInput,
   TicketStatus,
+  UpdateCampaignInput,
 } from "@/lib/rifa/types";
 import {
   RaffleFilters,
-  getTicketByNumber,
   subscribeToCampaigns,
   subscribeToDonations,
   subscribeToDraws,
-  subscribeToStudentStats,
   subscribeToTickets,
 } from "@/lib/rifa/data";
-
-import { DonationFormData } from "@/types";
+import { getStudents } from "@/lib/firebase/students";
+import { Student } from "@/types";
 
 interface RifaDashboardProps {
-  onRegisterDonation: (
-    input: RegisterDonationInput,
+  onCreateCampaign: (
+    input: CreateCampaignInput,
     context: RaffleActionContext
-  ) => Promise<{ donationId: string; ticketsGranted: number }>;
-  onAssignTickets: (
-    input: AssignTicketsInput,
+  ) => Promise<{ id: string }>;
+  onUpdateCampaign: (
+    input: UpdateCampaignInput,
     context: RaffleActionContext
-  ) => Promise<{ ticketIds: string[]; ticketNumbers: number[] }>;
+  ) => Promise<{ id: string }>;
+  onRegisterTickets: (
+    input: RegisterRaffleTicketsInput,
+    context: RaffleActionContext
+  ) => Promise<{ ticketNumbers: number[] }>;
   onRunDraw: (
     input: DeterministicDrawInput,
     context: RaffleActionContext
-  ) => Promise<{ drawId: string; winners: string[]; integrityHash: string }>;
+  ) => Promise<{ draws: { drawId: string; ticketId: string; ticketNumber: number; studentId: string; studentName?: string | null }[] }>;
 }
 
-function formatTimestamp(timestamp?: Timestamp) {
-  if (!timestamp) return "";
+interface FilterState {
+  studentQuery: string;
+  classQuery: string;
+  status: TicketStatus | "all";
+  ticketNumber: string;
+  startDate: Date | null;
+  endDate: Date | null;
+}
+
+const BASE_FILTERS: FilterState = {
+  studentQuery: "",
+  classQuery: "",
+  status: "all",
+  ticketNumber: "",
+  startDate: null,
+  endDate: null,
+};
+
+function createEmptyFilters(): FilterState {
+  return { ...BASE_FILTERS };
+}
+
+function toDate(timestamp?: Timestamp | null) {
+  if (!timestamp) return undefined;
   try {
-    return format(timestamp.toDate(), "dd/MM/yyyy HH:mm", { locale: ptBR });
+    return timestamp.toDate();
+  } catch (error) {
+    return undefined;
+  }
+}
+
+function formatTimestamp(value?: Timestamp | Date | null) {
+  if (!value) return "";
+  const date = value instanceof Timestamp ? value.toDate() : value;
+  try {
+    return format(date, "dd/MM/yyyy", { locale: ptBR });
   } catch (error) {
     return "";
   }
 }
 
+function isCampaignActive(campaign: RaffleCampaign, reference = new Date()) {
+  if (campaign.status !== "active") return false;
+  const start = campaign.startDate ? toDate(campaign.startDate)?.getTime() ?? 0 : 0;
+  const end = campaign.endDate ? toDate(campaign.endDate)?.getTime() ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
+  const ref = reference.getTime();
+  return ref >= start && ref <= end;
+}
+
+function campaignStatusLabel(campaign: RaffleCampaign) {
+  return campaign.status === "active" ? "Ativa" : "Inativa";
+}
+
+function formatTicketStatus(status: TicketStatus) {
+  switch (status) {
+    case "available":
+      return "Disponível";
+    case "assigned":
+      return "Atribuído";
+    case "drawn":
+      return "Sorteado";
+    default:
+      return status;
+  }
+}
+
 export function RifaDashboard({
-  onRegisterDonation,
-  onAssignTickets,
+  onCreateCampaign,
+  onUpdateCampaign,
+  onRegisterTickets,
   onRunDraw,
 }: RifaDashboardProps) {
-  const { toast } = useToast();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const [campaigns, setCampaigns] = useState<RaffleCampaign[]>([]);
   const [campaignLoading, setCampaignLoading] = useState(true);
-  const [selectedCampaignId, setSelectedCampaignId] =
-    useState<string | undefined>();
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | undefined>();
 
   const [donations, setDonations] = useState<RaffleDonation[]>([]);
-  const [donationsLoading, setDonationsLoading] = useState(false);
+  const [donationsLoading, setDonationsLoading] = useState(true);
   const [tickets, setTickets] = useState<RaffleTicket[]>([]);
-  const [ticketsLoading, setTicketsLoading] = useState(false);
-  const [participantStats, setParticipantStats] = useState<
-    StudentCampaignStats[]
-  >([]);
-  const [statsLoading, setStatsLoading] = useState(false);
+  const [ticketsLoading, setTicketsLoading] = useState(true);
   const [draws, setDraws] = useState<RaffleDrawResult[]>([]);
-  const [drawsLoading, setDrawsLoading] = useState(false);
+  const [drawsLoading, setDrawsLoading] = useState(true);
 
-  const [studentQuery, setStudentQuery] = useState("");
-  const [classQuery, setClassQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">(
-    "all"
-  );
-  const [ticketNumberFilter, setTicketNumberFilter] = useState("");
-  const [periodStart, setPeriodStart] = useState<Date | null>(null);
-  const [periodEnd, setPeriodEnd] = useState<Date | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
 
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(
-    null
-  );
+  const [filtersDraft, setFiltersDraft] = useState<FilterState>(() => createEmptyFilters());
+  const [filters, setFilters] = useState<FilterState>(() => createEmptyFilters());
+
+  const [activeTab, setActiveTab] = useState("donations");
+
+  const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<RaffleCampaign | null>(null);
+
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
+  const [registerQuantity, setRegisterQuantity] = useState(1);
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [studentClassroom, setStudentClassroom] = useState<string>("");
+  const [previewTicketNumbers, setPreviewTicketNumbers] = useState<number[]>([]);
+
+  const [drawUniverse, setDrawUniverse] = useState<"assigned">("assigned");
+  const [drawSeed, setDrawSeed] = useState(() => Date.now().toString());
+  const [drawWinnersCount, setDrawWinnersCount] = useState(1);
+
+  const [selectedDrawerStudentId, setSelectedDrawerStudentId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isDonationFormOpen, setIsDonationFormOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
 
-  const [drawSeed, setDrawSeed] = useState("");
-  const [drawWinnersCount, setDrawWinnersCount] = useState("1");
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     setCampaignLoading(true);
@@ -155,69 +200,61 @@ export function RifaDashboard({
       setCampaigns(items);
       setCampaignLoading(false);
       setSelectedCampaignId((current) => {
-        if (current) return current;
-        const active = items.find((item) => item.status === "active");
-        return active?.id ?? items[0]?.id;
+        if (current) {
+          const currentCampaign = items.find((item) => item.id === current);
+          if (currentCampaign && isCampaignActive(currentCampaign)) {
+            return current;
+          }
+        }
+        const nextActive = items.find((item) => isCampaignActive(item));
+        if (nextActive) {
+          return nextActive.id;
+        }
+        if (current && items.some((item) => item.id === current)) {
+          return current;
+        }
+        return items[0]?.id;
       });
     });
     return unsubscribe;
   }, []);
 
   useEffect(() => {
-    if (!selectedCampaignId) {
-      setDonations([]);
-      return;
-    }
-    setDonationsLoading(true);
-    const donationFilters: RaffleFilters = {
-      campaignId: selectedCampaignId,
-      periodStart,
-      periodEnd,
+    const loadStudents = async () => {
+      try {
+        const data = await getStudents();
+        setStudents(data.filter((student) => student.status === "active"));
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setStudentsLoading(false);
+      }
     };
-    const unsubscribe = subscribeToDonations(donationFilters, (items) => {
+    loadStudents();
+  }, []);
+
+  useEffect(() => {
+    setDonationsLoading(true);
+    const filters: RaffleFilters = {
+      campaignId: selectedCampaignId,
+      periodStart: filters.startDate,
+      periodEnd: filters.endDate,
+    };
+    const unsubscribe = subscribeToDonations(filters, (items) => {
       setDonations(items);
       setDonationsLoading(false);
     });
-    return () => {
-      unsubscribe();
-    };
-  }, [selectedCampaignId, periodStart, periodEnd]);
+    return () => unsubscribe();
+  }, [selectedCampaignId, filters.startDate, filters.endDate]);
 
   useEffect(() => {
-    if (!selectedCampaignId) {
-      setTickets([]);
-      return;
-    }
     setTicketsLoading(true);
-    const unsubscribe = subscribeToTickets(
-      { campaignId: selectedCampaignId },
-      (items) => {
-        setTickets(items);
-        setTicketsLoading(false);
-      }
-    );
-    return () => {
-      unsubscribe();
-    };
-  }, [selectedCampaignId]);
-
-  useEffect(() => {
-    if (!selectedCampaignId) {
-      setParticipantStats([]);
-      return;
-    }
-    setStatsLoading(true);
-    const unsubscribe = subscribeToStudentStats(
-      { campaignId: selectedCampaignId },
-      (items) => {
-        setParticipantStats(items);
-        setStatsLoading(false);
-      }
-    );
-    return () => {
-      unsubscribe();
-    };
-  }, [selectedCampaignId]);
+    const unsubscribe = subscribeToTickets({}, (items) => {
+      setTickets(items);
+      setTicketsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     setDrawsLoading(true);
@@ -225,200 +262,563 @@ export function RifaDashboard({
       setDraws(items);
       setDrawsLoading(false);
     });
-    return () => {
-      unsubscribe();
-    };
+    return () => unsubscribe();
   }, [selectedCampaignId]);
 
-  const campaign = useMemo(
+  useEffect(() => {
+    setDrawSeed(Date.now().toString());
+    setDrawWinnersCount(1);
+    setDrawUniverse("assigned");
+  }, [selectedCampaignId]);
+
+  const selectedCampaign = useMemo(
     () => campaigns.find((item) => item.id === selectedCampaignId),
     [campaigns, selectedCampaignId]
   );
 
-  const studentMetadata = useMemo(() => {
-    const map = new Map<
-      string,
-      { name?: string | null; className?: string | null }
-    >();
-    donations.forEach((donation) => {
-      map.set(donation.studentId, {
-        name: donation.studentName,
-        className: donation.studentClass,
-      });
+  const activeCampaignOptions = useMemo(
+    () => campaigns.filter((campaign) => isCampaignActive(campaign)),
+    [campaigns]
+  );
+
+  const eligibleCampaignId = useMemo(() => {
+    if (!selectedCampaignId) return undefined;
+    return activeCampaignOptions.some((campaign) => campaign.id === selectedCampaignId)
+      ? selectedCampaignId
+      : undefined;
+  }, [activeCampaignOptions, selectedCampaignId]);
+
+  const ticketsByCampaign = useMemo(() => {
+    return tickets.reduce<Record<string, RaffleTicket[]>>((acc, ticket) => {
+      const list = acc[ticket.campaignId] ?? [];
+      list.push(ticket);
+      acc[ticket.campaignId] = list;
+      return acc;
+    }, {});
+  }, [tickets]);
+
+  const selectedCampaignTickets = useMemo(() => {
+    if (!selectedCampaignId) return tickets;
+    return ticketsByCampaign[selectedCampaignId] ?? [];
+  }, [ticketsByCampaign, selectedCampaignId, tickets]);
+
+  const eligibleDrawTickets = useMemo(() => {
+    if (!eligibleCampaignId) return [];
+    const campaignTickets = ticketsByCampaign[eligibleCampaignId] ?? [];
+    if (drawUniverse === "assigned") {
+      return campaignTickets.filter((ticket) => ticket.status === "assigned");
+    }
+    return [];
+  }, [drawUniverse, eligibleCampaignId, ticketsByCampaign]);
+
+  const ticketsFiltered = useMemo(() => {
+    return selectedCampaignTickets.filter((ticket) => {
+      if (filters.status !== "all" && ticket.status !== filters.status) {
+        return false;
+      }
+      if (filters.ticketNumber) {
+        const number = Number(filters.ticketNumber);
+        if (!Number.isNaN(number) && ticket.ticketNumber !== number) {
+          return false;
+        }
+      }
+      if (filters.studentQuery) {
+        const query = filters.studentQuery.toLowerCase();
+        const matchesId = ticket.studentId?.toLowerCase().includes(query);
+        const matchesName = ticket.studentName?.toLowerCase().includes(query);
+        if (!matchesId && !matchesName) {
+          return false;
+        }
+      }
+      if (filters.classQuery) {
+        if (!ticket.studentClass?.toLowerCase().includes(filters.classQuery.toLowerCase())) {
+          return false;
+        }
+      }
+      if (filters.startDate || filters.endDate) {
+        const created = ticket.createdAt ? toDate(ticket.createdAt) : undefined;
+        if (filters.startDate && created && created < filters.startDate) {
+          return false;
+        }
+        if (filters.endDate && created && created > filters.endDate) {
+          return false;
+        }
+      }
+      return true;
     });
-    tickets.forEach((ticket) => {
+  }, [selectedCampaignTickets, filters]);
+
+  const participantMap = useMemo(() => {
+    const map = new Map<string, { studentName?: string; studentClass?: string; tickets: Record<string, number> }>();
+    selectedCampaignTickets.forEach((ticket) => {
       if (!ticket.studentId) return;
-      const current = map.get(ticket.studentId) ?? {};
-      map.set(ticket.studentId, {
-        name: current.name,
-        className: current.className,
-      });
+      const entry = map.get(ticket.studentId) ?? {
+        studentName: ticket.studentName,
+        studentClass: ticket.studentClass,
+        tickets: {},
+      };
+      entry.studentName = entry.studentName ?? ticket.studentName;
+      entry.studentClass = entry.studentClass ?? ticket.studentClass;
+      entry.tickets[ticket.campaignId] = (entry.tickets[ticket.campaignId] ?? 0) + 1;
+      map.set(ticket.studentId, entry);
     });
     return map;
-  }, [donations, tickets]);
+  }, [selectedCampaignTickets]);
+
+  const filteredParticipantIds = useMemo(() => {
+    const ids: string[] = [];
+    participantMap.forEach((entry, studentId) => {
+      if (filters.studentQuery) {
+        const query = filters.studentQuery.toLowerCase();
+        const matchesId = studentId.toLowerCase().includes(query);
+        const matchesName = entry.studentName?.toLowerCase().includes(query);
+        if (!matchesId && !matchesName) {
+          return;
+        }
+      }
+      if (filters.classQuery) {
+        if (!entry.studentClass?.toLowerCase().includes(filters.classQuery.toLowerCase())) {
+          return;
+        }
+      }
+      ids.push(studentId);
+    });
+    return ids;
+  }, [participantMap, filters.studentQuery, filters.classQuery]);
 
   const filteredDonations = useMemo(() => {
-    let list = donations;
-    if (studentQuery) {
-      const queryLower = studentQuery.toLowerCase();
-      list = list.filter((donation) =>
-        donation.studentName?.toLowerCase().includes(queryLower) ||
-        donation.studentId.includes(studentQuery)
-      );
-    }
-    if (classQuery) {
-      const classLower = classQuery.toLowerCase();
-      list = list.filter((donation) =>
-        donation.studentClass?.toLowerCase().includes(classLower)
-      );
-    }
-    return list;
-  }, [donations, studentQuery, classQuery]);
-
-  const filteredParticipants = useMemo(() => {
-    let list = participantStats;
-    if (studentQuery) {
-      const queryLower = studentQuery.toLowerCase();
-      list = list.filter((stat) => {
-        const metadata = studentMetadata.get(stat.studentId);
-        return (
-          stat.studentId.includes(studentQuery) ||
-          metadata?.name?.toLowerCase().includes(queryLower)
-        );
-      });
-    }
-    if (classQuery) {
-      const classLower = classQuery.toLowerCase();
-      list = list.filter((stat) => {
-        const metadata = studentMetadata.get(stat.studentId);
-        return metadata?.className?.toLowerCase().includes(classLower);
-      });
-    }
-    return list;
-  }, [participantStats, studentMetadata, studentQuery, classQuery]);
-
-  const filteredTickets = useMemo(() => {
-    let list = tickets.filter((ticket) => ticket.status !== "canceled");
-    if (statusFilter !== "all") {
-      list = list.filter((ticket) => ticket.status === statusFilter);
-    }
-    if (ticketNumberFilter) {
-      const number = Number(ticketNumberFilter);
-      if (!Number.isNaN(number)) {
-        list = list.filter((ticket) => ticket.number === number);
+    const allowedStudentIds = new Set(selectedCampaignTickets.map((ticket) => ticket.studentId).filter(Boolean) as string[]);
+    return donations.filter((donation) => {
+      if (selectedCampaignId && donation.campaignId !== selectedCampaignId) {
+        return false;
       }
+      if (!allowedStudentIds.has(donation.studentId)) {
+        return false;
+      }
+      if (filters.studentQuery) {
+        const query = filters.studentQuery.toLowerCase();
+        const matchesId = donation.studentId.toLowerCase().includes(query);
+        const matchesName = donation.studentName?.toLowerCase().includes(query);
+        if (!matchesId && !matchesName) {
+          return false;
+        }
+      }
+      if (filters.classQuery) {
+        if (!donation.studentClass?.toLowerCase().includes(filters.classQuery.toLowerCase())) {
+          return false;
+        }
+      }
+      if (filters.startDate && donation.createdAt) {
+        const created = donation.createdAt.toDate();
+        if (created < filters.startDate) {
+          return false;
+        }
+      }
+      if (filters.endDate && donation.createdAt) {
+        const created = donation.createdAt.toDate();
+        if (created > filters.endDate) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [donations, selectedCampaignId, selectedCampaignTickets, filters]);
+
+  const filteredDraws = useMemo(() => {
+    return draws.filter((draw) => {
+      if (selectedCampaignId && draw.campaignId !== selectedCampaignId) {
+        return false;
+      }
+      if (filters.studentQuery) {
+        const query = filters.studentQuery.toLowerCase();
+        const matchesId = draw.studentId?.toLowerCase().includes(query);
+        const matchesName = draw.studentName?.toLowerCase().includes(query);
+        if (!matchesId && !matchesName) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [draws, selectedCampaignId, filters.studentQuery]);
+
+  const latestDraw = useMemo(() => filteredDraws[0], [filteredDraws]);
+
+  const activeCampaignCount = useMemo(
+    () => campaigns.filter((campaign) => isCampaignActive(campaign)).length,
+    [campaigns]
+  );
+
+  const participantCount = useMemo(() => {
+    const studentsWithTickets = new Set(
+      tickets
+        .filter((ticket) => ticket.status === "assigned" || ticket.status === "drawn")
+        .map((ticket) => ticket.studentId)
+        .filter(Boolean) as string[]
+    );
+    return studentsWithTickets.size;
+  }, [tickets]);
+
+  const ticketSummary = useMemo(() => {
+    const available = tickets.filter((ticket) => ticket.status === "available").length;
+    const assigned = tickets.filter((ticket) => ticket.status === "assigned").length;
+    const drawn = tickets.filter((ticket) => ticket.status === "drawn").length;
+    return { available, assigned, drawn };
+  }, [tickets]);
+
+  const handleOpenCampaignModal = useCallback(() => {
+    setEditingCampaign(null);
+    setIsCampaignModalOpen(true);
+  }, []);
+
+  const scrollToCampaignSection = useCallback(() => {
+    if (typeof document === "undefined") return;
+    document
+      .getElementById("raffle-campaigns-section")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const handleEditCampaign = useCallback((campaign: RaffleCampaign) => {
+    setEditingCampaign(campaign);
+    setIsCampaignModalOpen(true);
+  }, []);
+
+  const handleCloseCampaignModal = useCallback(() => {
+    setIsCampaignModalOpen(false);
+  }, []);
+
+  const handleCampaignSubmit = useCallback(
+    (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!user) return;
+      const formData = new FormData(event.currentTarget);
+      const name = String(formData.get("name") ?? "").trim();
+      const status = String(formData.get("status") ?? "active");
+      const description = String(formData.get("description") ?? "").trim();
+      const startDateValue = formData.get("startDate") as string;
+      const endDateValue = formData.get("endDate") as string;
+      const goalValue = formData.get("goal") as string;
+
+      if (!name) {
+        toast({
+          title: "Informe o nome da campanha",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!startDateValue || !endDateValue) {
+        toast({
+          title: "Datas obrigatórias",
+          description: "Defina início e término da campanha.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const startDate = new Date(startDateValue);
+      const endDate = new Date(endDateValue);
+
+      if (endDate < startDate) {
+        toast({
+          title: "Período inválido",
+          description: "A data final não pode ser anterior ao início.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const context: RaffleActionContext = {
+        actorId: user.id,
+        actorName: user.name,
+      };
+
+      const payloadBase = {
+        name,
+        description: description || undefined,
+        startDate,
+        endDate,
+        status: status === "active" ? "active" : "inactive",
+        ticketGoal: goalValue ? Number(goalValue) : undefined,
+      } satisfies Omit<CreateCampaignInput, "status"> & { status: "active" | "inactive" };
+
+      if (
+        editingCampaign &&
+        payloadBase.status === "inactive" &&
+        (editingCampaign.ticketsDrawn ?? 0) > 0
+      ) {
+        const confirmed =
+          typeof window === "undefined"
+            ? true
+            : window.confirm(
+                "Esta campanha já possui sorteios realizados. Deseja realmente desativá-la?"
+              );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      startTransition(async () => {
+        try {
+          if (editingCampaign) {
+            await onUpdateCampaign(
+              {
+                id: editingCampaign.id,
+                ...payloadBase,
+              },
+              context
+            );
+            toast({ title: "Campanha atualizada com sucesso" });
+          } else {
+            const result = await onCreateCampaign(payloadBase, context);
+            toast({
+              title: "Campanha criada",
+              description: `A campanha ${name} foi registrada.`,
+            });
+            setSelectedCampaignId((current) => current ?? result.id);
+          }
+          setIsCampaignModalOpen(false);
+        } catch (error) {
+          console.error(error);
+          toast({
+            title: "Erro ao salvar campanha",
+            description: "Revise os dados e tente novamente.",
+            variant: "destructive",
+          });
+        }
+      });
+    },
+    [editingCampaign, onCreateCampaign, onUpdateCampaign, toast, user]
+  );
+
+  const handleOpenRegisterModal = useCallback(() => {
+    setIsRegisterModalOpen(true);
+    setPreviewTicketNumbers([]);
+    setRegisterQuantity(1);
+    setSelectedStudentId("");
+    setStudentClassroom("");
+  }, []);
+
+  const handleCloseRegisterModal = useCallback(() => {
+    setIsRegisterModalOpen(false);
+  }, []);
+
+  const handleStudentChange = useCallback(
+    (value: string) => {
+      setSelectedStudentId(value);
+      const student = students.find((item) => item.id === value);
+      setStudentClassroom(student ? student.class : "");
+    },
+    [students]
+  );
+
+  const handleGenerateTickets = useCallback(() => {
+    if (!eligibleCampaignId) {
+      toast({
+        title: "Campanha indisponível",
+        description: "Selecione uma campanha ativa para gerar bilhetes.",
+        variant: "destructive",
+      });
+      return;
     }
-    if (studentQuery) {
-      const queryLower = studentQuery.toLowerCase();
-      list = list.filter((ticket) => {
-        const metadata = ticket.studentId
-          ? studentMetadata.get(ticket.studentId)
-          : undefined;
-        return (
-          ticket.studentId?.includes(studentQuery) ||
-          metadata?.name?.toLowerCase().includes(queryLower)
+    if (!selectedStudentId) {
+      toast({
+        title: "Selecione o aluno",
+        description: "Escolha o aluno para vincular os bilhetes.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const quantity = Number.isFinite(registerQuantity)
+      ? Math.max(1, Math.floor(registerQuantity))
+      : 1;
+    if (quantity !== registerQuantity) {
+      setRegisterQuantity(quantity);
+    }
+    const campaignTickets = ticketsByCampaign[eligibleCampaignId] ?? [];
+    const lastNumber = campaignTickets.reduce(
+      (max, ticket) => Math.max(max, ticket.ticketNumber ?? ticket.number ?? 0),
+      0
+    );
+    const numbers = Array.from({ length: quantity }, (_, index) => lastNumber + index + 1);
+    setPreviewTicketNumbers(numbers);
+  }, [eligibleCampaignId, registerQuantity, selectedStudentId, ticketsByCampaign, toast, setRegisterQuantity]);
+
+  const studentTicketCount = useMemo(() => {
+    if (!eligibleCampaignId || !selectedStudentId) return 0;
+    const campaignTickets = ticketsByCampaign[eligibleCampaignId] ?? [];
+    return campaignTickets.filter((ticket) => ticket.studentId === selectedStudentId).length;
+  }, [eligibleCampaignId, ticketsByCampaign, selectedStudentId]);
+
+  const handleRegisterTickets = useCallback(() => {
+    if (!user || !selectedCampaignId || !selectedStudentId) return;
+    if (!eligibleCampaignId) {
+      toast({
+        title: "Campanha indisponível",
+        description: "Selecione uma campanha ativa para registrar rifas.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const student = students.find((item) => item.id === selectedStudentId);
+    if (!student) {
+      toast({
+        title: "Aluno não encontrado",
+        variant: "destructive",
+      });
+      return;
+    }
+    const quantity = Number.isFinite(registerQuantity)
+      ? Math.max(1, Math.floor(registerQuantity))
+      : 1;
+    if (quantity !== registerQuantity) {
+      setRegisterQuantity(quantity);
+    }
+    const context: RaffleActionContext = {
+      actorId: user.id,
+      actorName: user.name,
+    };
+
+    startTransition(async () => {
+      try {
+        const result = await onRegisterTickets(
+          {
+            campaignId: eligibleCampaignId,
+            studentId: student.id,
+            studentName: student.fullName,
+            studentClass: student.class,
+            quantity,
+          },
+          context
         );
-      });
-    }
-    if (classQuery) {
-      const classLower = classQuery.toLowerCase();
-      list = list.filter((ticket) => {
-        const metadata = ticket.studentId
-          ? studentMetadata.get(ticket.studentId)
-          : undefined;
-        return metadata?.className?.toLowerCase().includes(classLower);
-      });
-    }
-    return list;
+        setPreviewTicketNumbers(result.ticketNumbers);
+        toast({
+          title: "Rifas registradas",
+          description: `Rifas registradas para ${student.fullName}.`,
+        });
+        setIsRegisterModalOpen(false);
+      } catch (error) {
+        console.error(error);
+        toast({
+          title: "Erro ao registrar rifas",
+          description: "Tente novamente em instantes.",
+          variant: "destructive",
+        });
+      }
+    });
   }, [
-    tickets,
-    statusFilter,
-    ticketNumberFilter,
-    studentQuery,
-    classQuery,
-    studentMetadata,
+    user,
+    selectedCampaignId,
+    selectedStudentId,
+    registerQuantity,
+    eligibleCampaignId,
+    onRegisterTickets,
+    toast,
+    students,
+    setRegisterQuantity,
   ]);
 
-  const studentTimeline = useMemo(() => {
-    if (!selectedStudentId) return [];
-    const items: RaffleTimelineEntry[] = [];
-    donations
-      .filter((donation) => donation.studentId === selectedStudentId)
-      .forEach((donation) => {
-        const totalItems = donation.products?.reduce((sum, p) => sum + p.quantity, 0) ?? 0;
-        items.push({
-          id: donation.id,
-          type: "donation",
-          timestamp: donation.createdAt,
-          title: `Doação de ${totalItems} itens - ${donation.ticketsGranted ?? 0} rifas concedidas`,
-        });
-      });
-    tickets
-      .filter((ticket) => ticket.studentId === selectedStudentId)
-      .forEach((ticket) => {
-        if (ticket.assignedAt) {
-          items.push({
-            id: `${ticket.id}-assigned`,
-            type: "assignment",
-            timestamp: ticket.assignedAt,
-            title: `Bilhete #${ticket.number} atribuído`,
-          });
-        }
-        if (ticket.redeemedAt) {
-          items.push({
-            id: `${ticket.id}-redeemed`,
-            type: "redemption",
-            timestamp: ticket.redeemedAt,
-            title: `Bilhete #${ticket.number} resgatado`,
-          });
-        }
-      });
-    return items.sort((a, b) => {
-      const aTime = a.timestamp?.toMillis?.() ?? 0;
-      const bTime = b.timestamp?.toMillis?.() ?? 0;
-      return bTime - aTime;
-    });
-  }, [donations, tickets, selectedStudentId]);
-
-  const studentInventory = useMemo(() => {
-    if (!selectedStudentId) return [];
-    return tickets
-      .filter(
-        (ticket) =>
-          ticket.studentId === selectedStudentId &&
-          (ticket.status === "assigned" || ticket.status === "redeemed")
-      )
-      .sort((a, b) => a.number - b.number);
-  }, [tickets, selectedStudentId]);
-
-  const selectedStudentData = useMemo(() => {
-    if (!selectedStudentId) return null;
-    const donation = donations.find(d => d.studentId === selectedStudentId);
-    return donation
-      ? {
-          name: donation.studentName,
-          class: donation.studentClass,
-        }
-      : null;
-  }, [selectedStudentId, donations]);
-
-  const campaignSummary = useMemo(() => {
-    if (!selectedCampaignId) {
-      return {
-        donations: 0,
-        participants: 0,
-        tickets: 0,
+  const handleRunDraw = useCallback(
+    (seed: string, winnersCount: number) => {
+      if (!user || !eligibleCampaignId) return;
+      const context: RaffleActionContext = {
+        actorId: user.id,
+        actorName: user.name,
       };
+      startTransition(async () => {
+        try {
+          const result = await onRunDraw(
+            {
+              campaignId: eligibleCampaignId,
+              seed,
+              winnersCount,
+            },
+            context
+          );
+          const winner = result.draws[0];
+          if (winner) {
+            toast({
+              title: "Sorteio concluído",
+              description: `Bilhete #${winner.ticketNumber} foi sorteado!`,
+            });
+          }
+          setDrawSeed(Date.now().toString());
+        } catch (error) {
+          console.error(error);
+          toast({
+            title: "Erro ao sortear",
+            description: "Não foi possível concluir o sorteio.",
+            variant: "destructive",
+          });
+        }
+      });
+    },
+    [eligibleCampaignId, onRunDraw, toast, user]
+  );
+
+  const handleDrawSubmit = useCallback(() => {
+    if (!eligibleCampaignId) {
+      toast({
+        title: "Selecione uma campanha",
+        description: "Escolha uma campanha ativa para realizar o sorteio.",
+        variant: "destructive",
+      });
+      return;
     }
-    return {
-      donations: donations.length,
-      participants: participantStats.length,
-      tickets: tickets.length,
-    };
-  }, [selectedCampaignId, donations.length, participantStats.length, tickets.length]);
+    const campaign = campaigns.find((item) => item.id === eligibleCampaignId);
+    if (!campaign || !isCampaignActive(campaign)) {
+      toast({
+        title: "Campanha indisponível",
+        description: "A campanha selecionada precisa estar ativa para o sorteio.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const eligibleCount = eligibleDrawTickets.length;
+    if (eligibleCount === 0) {
+      toast({
+        title: "Sem bilhetes elegíveis",
+        description: "Não há bilhetes atribuídos para sortear nesta campanha.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const winners = Number.isFinite(drawWinnersCount)
+      ? Math.max(1, Math.floor(drawWinnersCount))
+      : 1;
+    if (winners !== drawWinnersCount) {
+      setDrawWinnersCount(winners);
+    }
+    if (winners > eligibleCount) {
+      toast({
+        title: "Quantidade inválida",
+        description: "O número de vencedores não pode exceder os bilhetes elegíveis.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const seed = drawSeed.trim() ? drawSeed.trim() : Date.now().toString();
+    handleRunDraw(seed, winners);
+  }, [
+    campaigns,
+    drawSeed,
+    drawWinnersCount,
+    eligibleCampaignId,
+    eligibleDrawTickets.length,
+    handleRunDraw,
+    setDrawWinnersCount,
+    toast,
+  ]);
+
+  const filteredTicketsCount = ticketsFiltered.length;
+  const filteredParticipants = filteredParticipantIds.map((id) => ({
+    id,
+    name: participantMap.get(id)?.studentName,
+    className: participantMap.get(id)?.studentClass,
+    campaigns: participantMap.get(id)?.tickets ?? {},
+  }));
 
   const openStudentDrawer = useCallback((studentId: string) => {
-    setSelectedStudentId(studentId);
+    setSelectedDrawerStudentId(studentId);
     setIsDrawerOpen(true);
   }, []);
 
@@ -426,759 +826,793 @@ export function RifaDashboard({
     setIsDrawerOpen(false);
   }, []);
 
-  const handleDonationSubmit = useCallback(
-    async (data: DonationFormData) => {
-      if (!selectedCampaignId || !user) return;
-      const context: RaffleActionContext = {
-        actorId: user.id,
-        actorName: user.name,
-      };
-      startTransition(async () => {
-        try {
-          const { donationId, ticketsGranted } = await onRegisterDonation(
-            {
-              campaignId: selectedCampaignId,
-              studentId: data.studentId,
-              products: data.products.map(p => ({
-                product: p.product,
-                quantity: p.quantity,
-                unit: p.unit,
-              })),
-              notes: data.notes,
-              receiptUrl: data.receiptUrl,
-              donationDate: data.date,
-            },
-            context
-          );
-          toast({
-            title: "Doação registrada",
-            description: `#${donationId} gerou ${ticketsGranted} bilhetes`,
-          });
-          setIsDonationFormOpen(false);
-        } catch (error) {
-          console.error(error);
-          toast({
-            title: "Erro ao registrar",
-            description: "Tente novamente em instantes.",
-            variant: "destructive",
-          });
+  const drawerTickets = useMemo(() => {
+    if (!selectedDrawerStudentId) return [];
+    return selectedCampaignTickets
+      .filter((ticket) => ticket.studentId === selectedDrawerStudentId)
+      .sort((a, b) => a.ticketNumber - b.ticketNumber);
+  }, [selectedCampaignTickets, selectedDrawerStudentId]);
+
+  const drawerStudentData = useMemo(() => {
+    if (!selectedDrawerStudentId) return null;
+    const entry = participantMap.get(selectedDrawerStudentId);
+    return entry
+      ? {
+          name: entry.studentName,
+          class: entry.studentClass,
         }
-      });
-    },
-    [
-      selectedCampaignId,
-      user,
-      onRegisterDonation,
-      toast,
-      startTransition,
-    ]
-  );
+      : null;
+  }, [participantMap, selectedDrawerStudentId]);
 
-  const handleAssignTickets = useCallback(
-    (input: AssignTicketsInput) => {
-      if (!user) return;
-      const context: RaffleActionContext = {
-        actorId: user.id,
-        actorName: user.name,
-      };
-      startTransition(async () => {
-        try {
-          const { ticketNumbers } = await onAssignTickets(input, context);
-          toast({
-            title: "Rifas atribuídas",
-            description: `Bilhetes ${ticketNumbers.join(", ")} agora são do aluno`,
-          });
-        } catch (error) {
-          console.error(error);
-          toast({
-            title: "Erro ao atribuir",
-            description: "Não foi possível completar a ação.",
-            variant: "destructive",
-          });
-        }
+  const drawerTimeline = useMemo(() => {
+    if (!selectedDrawerStudentId) return [];
+    const studentDonations = donations.filter(
+      (donation) => donation.studentId === selectedDrawerStudentId
+    );
+    const studentTickets = selectedCampaignTickets.filter(
+      (ticket) => ticket.studentId === selectedDrawerStudentId
+    );
+    const items = studentDonations.map((donation) => ({
+      id: donation.id,
+      type: "donation" as const,
+      timestamp: donation.createdAt,
+      title: `Doação registrada (${donation.products?.length ?? 0} itens)`
+        + (donation.ticketsGranted ? ` - ${donation.ticketsGranted} rifas` : ""),
+    }));
+    studentTickets.forEach((ticket) => {
+      items.push({
+        id: `${ticket.id}-assigned`,
+        type: "assignment" as const,
+        timestamp: ticket.createdAt,
+        title: `Bilhete #${ticket.ticketNumber} atribuído`,
       });
-    },
-    [user, onAssignTickets, toast]
-  );
-
-  const handleRunDraw = useCallback(
-    async (seed: string, winnersCount: number) => {
-      if (!selectedCampaignId || !user) return;
-      const context: RaffleActionContext = {
-        actorId: user.id,
-        actorName: user.name,
-      };
-      try {
-        const { winners } = await onRunDraw(
-          {
-            campaignId: selectedCampaignId,
-            seed,
-            winnersCount,
-          },
-          context
-        );
-        toast({
-          title: "Sorteio concluído",
-          description: `Vencedores: ${winners.join(", ")}`,
-        });
-      } catch (error) {
-        console.error(error);
-        toast({
-          title: "Erro no sorteio",
-          description: "Verifique os dados e tente novamente.",
-          variant: "destructive",
+      if (ticket.drawnAt) {
+        items.push({
+          id: `${ticket.id}-drawn`,
+          type: "redemption" as const,
+          timestamp: ticket.drawnAt,
+          title: `Bilhete #${ticket.ticketNumber} sorteado`,
         });
       }
-    },
-    [selectedCampaignId, user, onRunDraw, toast]
-  );
+    });
+    return items.sort((a, b) => {
+      const aTime = a.timestamp ? (a.timestamp instanceof Timestamp ? a.timestamp.toMillis() : new Date(a.timestamp).getTime()) : 0;
+      const bTime = b.timestamp ? (b.timestamp instanceof Timestamp ? b.timestamp.toMillis() : new Date(b.timestamp).getTime()) : 0;
+      return bTime - aTime;
+    });
+  }, [donations, selectedCampaignTickets, selectedDrawerStudentId]);
 
-  const handleTicketSearch = useCallback(async () => {
-    if (!selectedCampaignId || !ticketNumberFilter) return;
-    const number = Number(ticketNumberFilter);
-    if (Number.isNaN(number)) {
-      toast({
-        title: "Número inválido",
-        description: "Informe apenas números para buscar rifas.",
-        variant: "destructive",
-      });
-      return;
-    }
-    try {
-      const ticket = await getTicketByNumber(selectedCampaignId, number);
-      if (!ticket) {
-        toast({
-          title: "Bilhete não encontrado",
-          description: "Verifique o número informado.",
-        });
-        return;
-      }
-      if (ticket.studentId) {
-        openStudentDrawer(ticket.studentId);
-      } else {
-        toast({
-          title: "Bilhete disponível",
-          description: `#${ticket.number} ainda não foi atribuído.`,
-        });
-      }
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Erro na busca",
-        description: "Tente novamente em instantes.",
-        variant: "destructive",
-      });
-    }
-  }, [
-    selectedCampaignId,
-    ticketNumberFilter,
-    toast,
-    openStudentDrawer,
-  ]);
+  const handleApplyFilters = useCallback(() => {
+    setFilters({ ...filtersDraft });
+  }, [filtersDraft]);
 
-  const resetFilters = useCallback(() => {
-    setStudentQuery("");
-    setClassQuery("");
-    setStatusFilter("all");
-    setTicketNumberFilter("");
-    setPeriodStart(null);
-    setPeriodEnd(null);
+  const handleClearFilters = useCallback(() => {
+    const empty = createEmptyFilters();
+    setFiltersDraft(empty);
+    setFilters(empty);
   }, []);
 
-  const activeDonations = filteredDonations.slice(0, 5);
-  const activeParticipants = filteredParticipants.slice(0, 5);
-  const activeTickets = filteredTickets.slice(0, 5);
+  const handleFiltersDraftChange = useCallback(<K extends keyof FilterState>(key: K, value: FilterState[K]) => {
+    setFiltersDraft((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }, []);
+
+  const filteredText = useMemo(() => {
+    switch (activeTab) {
+      case "donations":
+        return `Filtrado por ${filteredDonations.length} registros`;
+      case "participants":
+        return `Filtrado por ${filteredParticipants.length} participantes`;
+      case "tickets":
+        return `Filtrado por ${filteredTicketsCount} bilhetes`;
+      case "draws":
+        return `Filtrado por ${filteredDraws.length} sorteios`;
+      default:
+        return "";
+    }
+  }, [activeTab, filteredDonations.length, filteredParticipants.length, filteredTicketsCount, filteredDraws.length]);
+
+  const hasActiveFilters = useMemo(
+    () =>
+      Boolean(
+        filters.studentQuery ||
+          filters.classQuery ||
+          filters.ticketNumber ||
+          filters.startDate ||
+          filters.endDate ||
+          filters.status !== "all"
+      ),
+    [filters]
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Rifas</h1>
           <p className="text-muted-foreground">
-            Controle campanhas, doações e sorteios em um só lugar.
+            Gerencie campanhas, acompanhe participantes e controle os bilhetes sorteados.
           </p>
         </div>
-        <div className="space-x-2">
-          <Button onClick={() => setIsDonationFormOpen(true)}>
-            Registrar doação
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={handleOpenRegisterModal} disabled={activeCampaignOptions.length === 0}>
+            <Ticket className="mr-2 h-4 w-4" /> Registrar rifa
           </Button>
-          <Button variant="outline" onClick={() => window.print()}>
-            <Printer className="mr-2 h-4 w-4" />
-            Imprimir relatório
+          <Button variant="outline" onClick={handleOpenCampaignModal}>
+            <Plus className="mr-2 h-4 w-4" /> Criar campanha
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card
           role="button"
           tabIndex={0}
-          onClick={() => setSelectedCampaignId(undefined)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              setSelectedCampaignId(undefined);
-            }
-          }}
-          className="border-primary/20 hover:border-primary"
+          onClick={scrollToCampaignSection}
+          className="border-primary/20 transition hover:border-primary"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Campanhas</CardTitle>
-            <Sparkles className="h-4 w-4 text-primary" />
+            <Info className="h-4 w-4 text-muted-foreground" title="Campanhas ativas no período atual" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaigns.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {campaignLoading ? "Carregando..." : "Ativas e finalizadas"}
-            </p>
+            <div className="text-2xl font-bold">
+              {campaignLoading ? "--" : `${activeCampaignCount}/${campaigns.length}`}
+            </div>
+            <p className="text-xs text-muted-foreground">Campanhas ativas / Total de campanhas</p>
           </CardContent>
         </Card>
         <Card
           role="button"
           tabIndex={0}
-          onClick={() => setPeriodStart(null)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              setPeriodStart(null);
-              setPeriodEnd(null);
-            }
-          }}
-          className="border-primary/20 hover:border-primary"
+          onClick={() => setActiveTab("donations")}
+          className="border-primary/20 transition hover:border-primary"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Doações</CardTitle>
-            <ArrowUpRight className="h-4 w-4 text-primary" />
+            <Info className="h-4 w-4 text-muted-foreground" title="Total de doações associadas às rifas" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {campaignSummary.donations}
+              {donationsLoading ? "--" : filteredDonations.length}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {donationsLoading
-                ? "Carregando..."
-                : "Registradas no período"}
-            </p>
+            <p className="text-xs text-muted-foreground">Doações associadas a rifas</p>
           </CardContent>
         </Card>
         <Card
           role="button"
           tabIndex={0}
-          onClick={() => setStudentQuery("")}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              setStudentQuery("");
-            }
-          }}
-          className="border-primary/20 hover:border-primary"
+          onClick={() => setActiveTab("participants")}
+          className="border-primary/20 transition hover:border-primary"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Participantes</CardTitle>
-            <Users className="h-4 w-4 text-primary" />
+            <Info className="h-4 w-4 text-muted-foreground" title="Alunos com pelo menos um bilhete atribuído" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {campaignSummary.participants}
+              {ticketsLoading ? "--" : participantCount}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {statsLoading
-                ? "Carregando..."
-                : "Alunos com rifas atribuídas"}
-            </p>
+            <p className="text-xs text-muted-foreground">Alunos com bilhetes</p>
           </CardContent>
         </Card>
         <Card
           role="button"
           tabIndex={0}
-          onClick={() => setStatusFilter("all")}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              setStatusFilter("all");
-            }
-          }}
-          className="border-primary/20 hover:border-primary"
+          onClick={() => setActiveTab("tickets")}
+          className="border-primary/20 transition hover:border-primary"
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Bilhetes</CardTitle>
-            <Ticket className="h-4 w-4 text-primary" />
+            <Info className="h-4 w-4 text-muted-foreground" title="Distribuição de bilhetes disponíveis, atribuídos e sorteados" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaignSummary.tickets}</div>
-            <p className="text-xs text-muted-foreground">
-              {ticketsLoading ? "Carregando..." : "Disponíveis e atribuídos"}
-            </p>
+            <div className="text-sm text-muted-foreground">
+              {ticketsLoading ? (
+                "Carregando..."
+              ) : (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-foreground">
+                    <span>Disponíveis</span>
+                    <span className="font-semibold">{ticketSummary.available}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-foreground">
+                    <span>Atribuídos</span>
+                    <span className="font-semibold">{ticketSummary.assigned}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-foreground">
+                    <span>Sorteados</span>
+                    <span className="font-semibold">{ticketSummary.drawn}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">Disponíveis / Atribuídos / Sorteados</p>
           </CardContent>
         </Card>
       </div>
 
-      <FiltersBar
-        studentQuery={studentQuery}
-        onStudentQueryChange={setStudentQuery}
-        classQuery={classQuery}
-        onClassQueryChange={setClassQuery}
-        status={statusFilter}
-        onStatusChange={setStatusFilter}
-        ticketNumber={ticketNumberFilter}
-        onTicketNumberChange={setTicketNumberFilter}
-        startDate={periodStart}
-        endDate={periodEnd}
-        onStartDateChange={setPeriodStart}
-        onEndDateChange={setPeriodEnd}
-        onClear={resetFilters}
-      />
+      <div className="flex flex-col gap-2 rounded-lg border bg-muted/40 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <ListFilter className="h-4 w-4" /> Filtros
+          </div>
+          <Badge variant="outline">Campanha: {selectedCampaign?.name ?? "Todas"}</Badge>
+        </div>
+        <FiltersBar
+          filters={filtersDraft}
+          onFiltersChange={handleFiltersDraftChange}
+          onApply={handleApplyFilters}
+          onClear={handleClearFilters}
+        />
+        {hasActiveFilters && (
+          <p className="text-xs text-muted-foreground">{filteredText}</p>
+        )}
+      </div>
 
-      <Tabs defaultValue="donations" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="donations">Doações</TabsTrigger>
           <TabsTrigger value="participants">Participantes</TabsTrigger>
           <TabsTrigger value="tickets">Bilhetes</TabsTrigger>
           <TabsTrigger value="draws">Sorteios</TabsTrigger>
         </TabsList>
+
         <TabsContent value="donations" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Doações recentes</CardTitle>
+              <CardTitle>Doações relacionadas</CardTitle>
               <CardDescription>
-                Acompanhe as contribuições e seus bilhetes gerados.
+                Visualize as doações conectadas às rifas dos alunos.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Filtrado por {filteredDonations.length} registros
+              <div className="text-sm text-muted-foreground">{filteredText}</div>
+              {donationsLoading ? (
+                <p className="text-sm text-muted-foreground">Carregando doações...</p>
+              ) : filteredDonations.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Nenhuma doação associada às rifas. Use a página de Doações para registrar contribuições.
                 </div>
-                <Button variant="outline" onClick={handleTicketSearch}>
-                  <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar CSV
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {activeDonations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhuma doação encontrada com os filtros atuais.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Aluno</TableHead>
-                        <TableHead>Itens</TableHead>
-                        <TableHead>Rifas</TableHead>
-                        <TableHead>Registrado por</TableHead>
-                        <TableHead>Data</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {activeDonations.map((donation) => (
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Campanha</TableHead>
+                      <TableHead>Aluno</TableHead>
+                      <TableHead>Turma</TableHead>
+                      <TableHead>Tipo de item</TableHead>
+                      <TableHead>Quantidade</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDonations.map((donation) => {
+                      const totalItems = donation.products?.reduce(
+                        (sum, product) => sum + (product.quantity ?? 0),
+                        0
+                      );
+                      return (
                         <TableRow key={donation.id}>
-                          <TableCell className="font-medium">
-                            <div className="space-y-1">
-                              <div>{donation.studentName ?? donation.studentId}</div>
-                              {donation.studentClass && (
-                                <div className="text-xs text-muted-foreground">
-                                  {donation.studentClass}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {donation.products?.length
-                              ? `${donation.products.length} produto(s)`
-                              : "N/A"}
-                          </TableCell>
-                          <TableCell>{donation.ticketsGranted ?? 0} rifas</TableCell>
-                          <TableCell>{donation.registeredByName ?? "Sistema"}</TableCell>
                           <TableCell>{formatTimestamp(donation.createdAt)}</TableCell>
+                          <TableCell>
+                            {campaigns.find((campaign) => campaign.id === donation.campaignId)?.name ?? "--"}
+                          </TableCell>
+                          <TableCell>{donation.studentName ?? donation.studentId}</TableCell>
+                          <TableCell>{donation.studentClass ?? "--"}</TableCell>
+                          <TableCell>
+                            {donation.products?.map((product) => product.product).join(", ") || "--"}
+                          </TableCell>
+                          <TableCell>{totalItems ?? 0}</TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
         <TabsContent value="participants" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Alunos com rifas</CardTitle>
-              <CardDescription>
-                Veja o desempenho por participante e acesse ações rápidas.
-              </CardDescription>
+              <CardTitle>Participantes</CardTitle>
+              <CardDescription>Alunos com rifas vinculadas às campanhas selecionadas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {filteredParticipants.length} participantes encontrados
+              <div className="text-sm text-muted-foreground">{filteredText}</div>
+              {filteredParticipants.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Nenhuma rifa registrada ainda. Use o botão “Registrar rifa” para começar.
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedCampaignId(selectedCampaignId)}
-                >
-                  Atualizar
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {activeParticipants.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum aluno encontrado com os filtros atuais.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Aluno</TableHead>
-                        <TableHead>Rifas atribuídas</TableHead>
-                        <TableHead>Última movimentação</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {activeParticipants.map((participant) => {
-                        const metadata = studentMetadata.get(
-                          participant.studentId
-                        );
-                        return (
-                          <TableRow key={participant.studentId}>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="font-medium">
-                                  {metadata?.name ?? participant.studentId}
-                                </div>
-                                {metadata?.className && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {metadata.className}
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>{participant.ticketsAssigned}</TableCell>
-                            <TableCell>
-                              {participant.updatedAt
-                                ? formatTimestamp(participant.updatedAt)
-                                : "-"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openStudentDrawer(participant.studentId)}
-                              >
-                                Ver detalhes
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Aluno</TableHead>
+                      <TableHead>Turma</TableHead>
+                      <TableHead>Campanhas</TableHead>
+                      <TableHead>Total de bilhetes</TableHead>
+                      <TableHead>Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredParticipants.map((participant) => {
+                      const campaignsEntries = Object.entries(participant.campaigns);
+                      const totalTickets = campaignsEntries.reduce(
+                        (sum, [, value]) => sum + value,
+                        0
+                      );
+                      return (
+                        <TableRow key={participant.id}>
+                          <TableCell>{participant.name ?? participant.id}</TableCell>
+                          <TableCell>{participant.className ?? "--"}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              {campaignsEntries.map(([campaignId, value]) => (
+                                <span key={campaignId} className="text-sm text-muted-foreground">
+                                  {campaigns.find((campaign) => campaign.id === campaignId)?.name ?? campaignId} ({value})
+                                </span>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-semibold">{totalTickets}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline" onClick={() => openStudentDrawer(participant.id)}>
+                              Ver inventário
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
         <TabsContent value="tickets" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Bilhetes</CardTitle>
-              <CardDescription>
-                Consulte o inventário completo e transfira rapidamente.
-              </CardDescription>
+              <CardDescription>Lista completa dos bilhetes gerados nas campanhas.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {filteredTickets.length} bilhetes encontrados
+              <div className="text-sm text-muted-foreground">{filteredText}</div>
+              {ticketsLoading ? (
+                <p className="text-sm text-muted-foreground">Carregando bilhetes...</p>
+              ) : ticketsFiltered.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Nenhuma rifa registrada ainda. Use o botão “Registrar rifa” para começar.
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    placeholder="Número da rifa"
-                    value={ticketNumberFilter}
-                    onChange={(event) =>
-                      setTicketNumberFilter(event.target.value)
-                    }
-                    className="w-[160px]"
-                  />
-                  <Button variant="secondary" onClick={handleTicketSearch}>
-                    Buscar
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {activeTickets.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum bilhete encontrado com os filtros atuais.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Número</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Aluno</TableHead>
-                        <TableHead>Atribuído em</TableHead>
-                        <TableHead>Resgatado em</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nº da rifa</TableHead>
+                      <TableHead>Aluno</TableHead>
+                      <TableHead>Turma</TableHead>
+                      <TableHead>Campanha</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Data de criação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ticketsFiltered.map((ticket) => (
+                      <TableRow key={ticket.id}>
+                        <TableCell className="font-semibold">#{ticket.ticketNumber}</TableCell>
+                        <TableCell>{ticket.studentName ?? ticket.studentId ?? "--"}</TableCell>
+                        <TableCell>{ticket.studentClass ?? "--"}</TableCell>
+                        <TableCell>
+                          {campaigns.find((campaign) => campaign.id === ticket.campaignId)?.name ?? ticket.campaignId}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={ticket.status === "drawn" ? "secondary" : "outline"}>
+                            {formatTicketStatus(ticket.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatTimestamp(ticket.createdAt)}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {activeTickets.map((ticket) => {
-                        const metadata = ticket.studentId
-                          ? studentMetadata.get(ticket.studentId)
-                          : undefined;
-                        return (
-                          <TableRow key={ticket.id}>
-                            <TableCell>#{ticket.number}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  ticket.status === "redeemed"
-                                    ? "default"
-                                    : ticket.status === "assigned"
-                                    ? "secondary"
-                                    : "outline"
-                                }
-                              >
-                                {ticket.status === "available"
-                                  ? "Disponível"
-                                  : ticket.status === "assigned"
-                                  ? "Atribuído"
-                                  : ticket.status === "redeemed"
-                                  ? "Resgatado"
-                                  : "Cancelado"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {metadata?.name ?? ticket.studentId ?? "-"}
-                            </TableCell>
-                            <TableCell>{formatTimestamp(ticket.assignedAt)}</TableCell>
-                            <TableCell>{formatTimestamp(ticket.redeemedAt)}</TableCell>
-                            <TableCell className="text-right">
-                              {ticket.studentId ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => openStudentDrawer(ticket.studentId!)}
-                                >
-                                  Ver aluno
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    if (!studentQuery) {
-                                      toast({
-                                        title: "Filtre por aluno",
-                                        description:
-                                          "Busque o aluno antes de atribuir o bilhete.",
-                                      });
-                                      return;
-                                    }
-                                    const metadata = [...studentMetadata.entries()].find(
-                                      ([, value]) =>
-                                        value.name?.toLowerCase() ===
-                                        studentQuery.toLowerCase()
-                                    );
-                                    if (metadata) {
-                                      openStudentDrawer(metadata[0]);
-                                    } else {
-                                      toast({
-                                        title: "Aluno não encontrado",
-                                        description:
-                                          "Selecione o aluno nos filtros antes de atribuir.",
-                                      });
-                                    }
-                                  }}
-                                >
-                                  Atribuir
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
+
         <TabsContent value="draws" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle>Sorteios</CardTitle>
-              <CardDescription>
-                Registre sorteios determinísticos e audite resultados.
-              </CardDescription>
+              <CardDescription>Registros de sorteios realizados por campanha.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="draw-seed">Seed do sorteio</Label>
-                  <Input
-                    id="draw-seed"
-                    placeholder="Ex: festa-junina-2024"
-                    value={drawSeed}
-                    onChange={(event) => setDrawSeed(event.target.value)}
-                  />
+              <div className="space-y-4 rounded-lg border bg-muted/40 p-4">
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label>Campanha</Label>
+                    <Select
+                      value={eligibleCampaignId ?? ""}
+                      onValueChange={(value) => setSelectedCampaignId(value)}
+                      disabled={activeCampaignOptions.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a campanha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activeCampaignOptions.length === 0 ? (
+                          <SelectItem value="" disabled>
+                            Nenhuma campanha ativa
+                          </SelectItem>
+                        ) : (
+                          activeCampaignOptions.map((campaign) => (
+                            <SelectItem key={campaign.id} value={campaign.id}>
+                              {campaign.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Universo do sorteio</Label>
+                    <Select
+                      value={drawUniverse}
+                      onValueChange={(value) => setDrawUniverse(value as typeof drawUniverse)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o universo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="assigned">
+                          Todos os bilhetes atribuídos desta campanha
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="draw-winners">Quantidade de vencedores</Label>
+                    <Input
+                      id="draw-winners"
+                      type="number"
+                      min={1}
+                      value={drawWinnersCount}
+                      onChange={(event) => {
+                        const value = Number(event.target.value);
+                        const sanitized = Number.isFinite(value)
+                          ? Math.max(1, Math.floor(value))
+                          : 1;
+                        setDrawWinnersCount(sanitized);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="draw-seed">Semente (opcional)</Label>
+                    <Input
+                      id="draw-seed"
+                      value={drawSeed}
+                      onChange={(event) => setDrawSeed(event.target.value)}
+                      placeholder="Ex.: 20240315"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="draw-winners">Quantidade de vencedores</Label>
-                  <Input
-                    id="draw-winners"
-                    type="number"
-                    min={1}
-                    value={drawWinnersCount}
-                    onChange={(event) => setDrawWinnersCount(event.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  onClick={() => {
-                    const quantity = Number(drawWinnersCount);
-                    if (!drawSeed || Number.isNaN(quantity) || quantity <= 0) {
-                      toast({
-                        title: "Dados inválidos",
-                        description: "Informe seed e quantidade válidas.",
-                        variant: "destructive",
-                      });
-                      return;
+                <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Bilhetes elegíveis: {eligibleDrawTickets.length}
+                  </p>
+                  <Button
+                    onClick={handleDrawSubmit}
+                    disabled={
+                      isPending ||
+                      !eligibleCampaignId ||
+                      eligibleDrawTickets.length === 0
                     }
-                    handleRunDraw(drawSeed, quantity);
-                  }}
-                  disabled={isPending}
-                >
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Realizar sorteio
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDrawSeed("");
-                    setDrawWinnersCount("1");
-                  }}
-                >
-                  Limpar
-                </Button>
+                  >
+                    Sortear rifa
+                  </Button>
+                </div>
               </div>
-              <div className="space-y-2">
-                {drawsLoading ? (
-                  <p className="text-sm text-muted-foreground">
-                    Carregando sorteios...
+              <div className="text-sm text-muted-foreground">{filteredText}</div>
+              {latestDraw && !drawsLoading && filteredDraws.length > 0 ? (
+                <div className="rounded-lg border bg-muted/40 p-4">
+                  <p className="text-sm font-medium text-muted-foreground">Último vencedor</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {latestDraw.studentName ?? latestDraw.studentId} • Bilhete #{latestDraw.ticketNumber}
                   </p>
-                ) : draws.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    Nenhum sorteio registrado ainda.
-                  </p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Seed</TableHead>
-                        <TableHead>Vencedores</TableHead>
-                        <TableHead>Hash de integridade</TableHead>
-                        <TableHead>Data</TableHead>
+                </div>
+              ) : null}
+              {drawsLoading ? (
+                <p className="text-sm text-muted-foreground">Carregando sorteios...</p>
+              ) : filteredDraws.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Nenhum sorteio realizado ainda. Gere bilhetes e execute o sorteio quando estiver pronto.
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Campanha</TableHead>
+                      <TableHead>Bilhete</TableHead>
+                      <TableHead>Aluno</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDraws.map((draw) => (
+                      <TableRow key={draw.id}>
+                        <TableCell>{formatTimestamp(draw.createdAt)}</TableCell>
+                        <TableCell>
+                          {campaigns.find((campaign) => campaign.id === draw.campaignId)?.name ?? draw.campaignId}
+                        </TableCell>
+                        <TableCell>#{draw.ticketNumber}</TableCell>
+                        <TableCell>{draw.studentName ?? draw.studentId}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {draws.map((draw) => (
-                        <TableRow key={draw.id}>
-                          <TableCell>{draw.seed}</TableCell>
-                          <TableCell>{draw.winners.join(", ")}</TableCell>
-                          <TableCell>
-                            <code className="text-xs">{draw.integrityHash}</code>
-                          </TableCell>
-                          <TableCell>{formatTimestamp(draw.createdAt)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Campanhas</CardTitle>
-          <CardDescription>
-            Selecione a campanha para aplicar os filtros e registrar ações.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {campaigns.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setSelectedCampaignId(item.id)}
-                className={`rounded-lg border p-4 text-left transition hover:border-primary ${
-                  selectedCampaignId === item.id
-                    ? "border-primary bg-primary/10"
-                    : "border-border"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold">{item.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {item.description ?? "Sem descrição"}
-                    </p>
+      <section id="raffle-campaigns-section" className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Campanhas cadastradas</h2>
+          <Button variant="ghost" size="sm" onClick={handleOpenCampaignModal}>
+            Nova campanha
+          </Button>
+        </div>
+        {campaigns.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            Nenhuma campanha registrada. Utilize o botão “Criar campanha” para iniciar uma nova campanha de rifas.
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {campaigns.map((campaign) => (
+              <Card key={campaign.id} className="flex flex-col justify-between">
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <CardTitle>{campaign.name}</CardTitle>
+                      <CardDescription>{campaign.description || "Sem descrição"}</CardDescription>
+                    </div>
+                    <Badge variant={isCampaignActive(campaign) ? "default" : "outline"}>
+                      {campaignStatusLabel(campaign)}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant={
-                      item.status === "active"
-                        ? "default"
-                        : item.status === "closed"
-                        ? "secondary"
-                        : "outline"
-                    }
-                  >
-                    {item.status === "active"
-                      ? "Ativa"
-                      : item.status === "closed"
-                      ? "Encerrada"
-                      : "Rascunho"}
-                  </Badge>
-                </div>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Início</p>
-                    <p>{formatTimestamp(item.startDate)}</p>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4" />
+                    {formatTimestamp(campaign.startDate)} - {formatTimestamp(campaign.endDate)}
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Fim</p>
-                    <p>{formatTimestamp(item.endDate)}</p>
+                  <div className="flex items-center gap-2">
+                    <Ticket className="h-4 w-4" /> Meta: {campaign.ticketGoal ?? "Não definida"}
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Total de Rifas</p>
-                    <p>{item.ticketsTotal ?? "-"}</p>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" /> Bilhetes sorteados: {campaign.ticketsDrawn ?? 0}
                   </div>
-                </div>
-              </button>
+                  <Button variant="outline" size="sm" onClick={() => handleEditCampaign(campaign)}>
+                    Editar campanha
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </section>
 
-      <DonationForm
-        open={isDonationFormOpen}
-        onClose={() => setIsDonationFormOpen(false)}
-        onSubmit={handleDonationSubmit}
-      />
+      <Dialog open={isCampaignModalOpen} onOpenChange={setIsCampaignModalOpen}>
+        <DialogContent>
+          <form onSubmit={handleCampaignSubmit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>{editingCampaign ? "Editar campanha" : "Criar campanha"}</DialogTitle>
+              <DialogDescription>
+                Defina as informações principais da campanha de rifas.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="campaign-name">Nome da campanha</Label>
+              <Input
+                id="campaign-name"
+                name="name"
+                defaultValue={editingCampaign?.name}
+                placeholder="Campanha de inverno"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="campaign-description">Descrição</Label>
+              <Textarea
+                id="campaign-description"
+                name="description"
+                defaultValue={editingCampaign?.description ?? ""}
+                placeholder="Descrição curta (opcional)"
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="campaign-start">Data de início</Label>
+                <Input
+                  id="campaign-start"
+                  type="date"
+                  name="startDate"
+                  defaultValue={
+                    editingCampaign?.startDate ?
+                      format(toDate(editingCampaign.startDate) ?? new Date(), "yyyy-MM-dd") :
+                      ""
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="campaign-end">Data de término</Label>
+                <Input
+                  id="campaign-end"
+                  type="date"
+                  name="endDate"
+                  defaultValue={
+                    editingCampaign?.endDate ?
+                      format(toDate(editingCampaign.endDate) ?? new Date(), "yyyy-MM-dd") :
+                      ""
+                  }
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="campaign-goal">Meta de bilhetes</Label>
+                <Input
+                  id="campaign-goal"
+                  name="goal"
+                  type="number"
+                  min={0}
+                  defaultValue={editingCampaign?.ticketGoal ?? ""}
+                  placeholder="Opcional"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="campaign-status">Status</Label>
+                <Select
+                  name="status"
+                  defaultValue={editingCampaign?.status ?? "active"}
+                >
+                  <SelectTrigger id="campaign-status">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Ativa</SelectItem>
+                    <SelectItem value="inactive">Inativa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={handleCloseCampaignModal}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={isPending}>
+                {editingCampaign ? "Salvar alterações" : "Criar campanha"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRegisterModalOpen} onOpenChange={setIsRegisterModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar rifa</DialogTitle>
+            <DialogDescription>
+              Gere novos bilhetes associados a uma campanha ativa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Campanha</Label>
+              <Select
+                value={eligibleCampaignId ?? ""}
+                onValueChange={(value) => setSelectedCampaignId(value)}
+                disabled={activeCampaignOptions.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a campanha" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeCampaignOptions.length === 0 ? (
+                    <SelectItem value="" disabled>
+                      Nenhuma campanha ativa
+                    </SelectItem>
+                  ) : (
+                    activeCampaignOptions.map((campaign) => (
+                      <SelectItem key={campaign.id} value={campaign.id}>
+                        {campaign.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Aluno</Label>
+              <StudentCombobox
+                students={students}
+                value={selectedStudentId}
+                onValueChange={handleStudentChange}
+                placeholder={studentsLoading ? "Carregando alunos..." : "Selecione o aluno"}
+                disabled={studentsLoading}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Turma</Label>
+              <Input value={studentClassroom} readOnly placeholder="Turma do aluno" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ticket-quantity">Quantidade de bilhetes</Label>
+              <Input
+                id="ticket-quantity"
+                type="number"
+                min={1}
+                value={registerQuantity}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  const sanitized = Number.isFinite(value)
+                    ? Math.max(1, Math.floor(value))
+                    : 1;
+                  setRegisterQuantity(sanitized);
+                }}
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+              <span>Este aluno já possui {studentTicketCount} bilhetes nesta campanha.</span>
+              <Button size="sm" variant="outline" onClick={handleGenerateTickets}>
+                Gerar bilhetes
+              </Button>
+            </div>
+            {previewTicketNumbers.length > 0 && (
+              <div className="space-y-3 rounded-lg border p-4">
+                <p className="text-sm font-semibold text-foreground">Pré-visualização</p>
+                <div className="flex flex-wrap gap-2">
+                  {previewTicketNumbers.map((number) => (
+                    <Badge key={number} variant="outline">
+                      Bilhete #{number.toString().padStart(3, "0")}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Copie estes números e escreva no verso dos bilhetes físicos antes de entregar ao aluno.
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="ghost" onClick={handleCloseRegisterModal}>
+              Cancelar
+            </Button>
+            <Button onClick={handleRegisterTickets} disabled={isPending}>
+              Registrar rifa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <StudentDrawer
         open={isDrawerOpen}
         onOpenChange={setIsDrawerOpen}
-        studentName={selectedStudentData?.name}
-        studentClass={selectedStudentData?.class}
-        campaignId={selectedCampaignId}
-        tickets={studentInventory}
-        timeline={studentTimeline}
-        onAssignTickets={handleAssignTickets}
+        studentName={drawerStudentData?.name}
+        studentClass={drawerStudentData?.class}
+        tickets={drawerTickets}
+        timeline={drawerTimeline}
       />
     </div>
   );
 }
-
