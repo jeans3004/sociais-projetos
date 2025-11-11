@@ -115,6 +115,35 @@ export async function updateCampaignAction(
   return { id: input.id };
 }
 
+// Gera números aleatórios únicos para bilhetes
+function generateUniqueRandomNumbers(
+  count: number,
+  existingNumbers: Set<number>,
+  min: number = 1,
+  max: number = 999999
+): number[] {
+  const numbers: number[] = [];
+  const maxAttempts = count * 100; // Prevenir loop infinito
+  let attempts = 0;
+
+  while (numbers.length < count && attempts < maxAttempts) {
+    const randomNum = Math.floor(Math.random() * (max - min + 1)) + min;
+    if (!existingNumbers.has(randomNum) && !numbers.includes(randomNum)) {
+      numbers.push(randomNum);
+      existingNumbers.add(randomNum);
+    }
+    attempts++;
+  }
+
+  if (numbers.length < count) {
+    throw new Error(
+      "Não foi possível gerar números únicos suficientes. Tente novamente."
+    );
+  }
+
+  return numbers.sort((a, b) => a - b);
+}
+
 export async function registerRaffleTicketsAction(
   input: RegisterRaffleTicketsInput,
   context: RaffleActionContext
@@ -131,6 +160,7 @@ export async function registerRaffleTicketsAction(
     `${input.campaignId}_${input.studentId}`
   );
   let ticketNumbers: number[] = [];
+
   await runTransaction(db, async (transaction) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists()) {
@@ -164,13 +194,22 @@ export async function registerRaffleTicketsAction(
       throw new Error("A campanha já foi encerrada");
     }
 
-    const baseNumber = typeof campaignData.ticketsTotal === "number"
-      ? campaignData.ticketsTotal
-      : 0;
+    // Buscar números existentes para evitar duplicatas
+    const existingTicketsSnapshot = await getDocs(
+      query(ticketsRef, where("campaignId", "==", input.campaignId))
+    );
+    const existingNumbers = new Set<number>();
+    existingTicketsSnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.ticketNumber) {
+        existingNumbers.add(data.ticketNumber);
+      }
+    });
 
-    ticketNumbers = Array.from(
-      { length: input.quantity },
-      (_, index) => baseNumber + index + 1
+    // Gerar números aleatórios únicos
+    ticketNumbers = generateUniqueRandomNumbers(
+      input.quantity,
+      existingNumbers
     );
 
     const ticketRefs = ticketNumbers.map(() => doc(ticketsRef));
@@ -201,6 +240,7 @@ export async function registerRaffleTicketsAction(
         studentId: input.studentId,
         studentName: input.studentName,
         studentClass: input.studentClass ?? null,
+        studentGrade: input.studentGrade ?? null,
         status: "assigned",
         createdAt: serverTimestamp(),
         createdBy: context.actorId,

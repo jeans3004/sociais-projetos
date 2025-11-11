@@ -56,6 +56,7 @@ export interface RaffleTicket {
   studentId?: string;
   studentName?: string;
   studentClass?: string;
+  studentGrade?: string;
   donationId?: string;
   assignedAt?: Timestamp;
   drawnAt?: Timestamp;
@@ -104,6 +105,7 @@ export interface RegisterRaffleTicketsInput {
   studentId: string;
   studentName: string;
   studentClass?: string;
+  studentGrade?: string;
   quantity: number;
 }
 

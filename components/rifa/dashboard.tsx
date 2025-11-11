@@ -367,16 +367,18 @@ export function RifaDashboard({
   }, [selectedCampaignTickets, filters]);
 
   const participantMap = useMemo(() => {
-    const map = new Map<string, { studentName?: string; studentClass?: string; tickets: Record<string, number> }>();
+    const map = new Map<string, { studentName?: string; studentClass?: string; studentGrade?: string; tickets: Record<string, number> }>();
     selectedCampaignTickets.forEach((ticket) => {
       if (!ticket.studentId) return;
       const entry = map.get(ticket.studentId) ?? {
         studentName: ticket.studentName,
         studentClass: ticket.studentClass,
+        studentGrade: ticket.studentGrade,
         tickets: {},
       };
       entry.studentName = entry.studentName ?? ticket.studentName;
       entry.studentClass = entry.studentClass ?? ticket.studentClass;
+      entry.studentGrade = entry.studentGrade ?? ticket.studentGrade;
       entry.tickets[ticket.campaignId] = (entry.tickets[ticket.campaignId] ?? 0) + 1;
       map.set(ticket.studentId, entry);
     });
@@ -717,6 +719,7 @@ export function RifaDashboard({
             studentId: student.id,
             studentName: student.fullName,
             studentClass: student.class,
+            studentGrade: student.grade.toString(),
             quantity: registerQuantity,
           },
           context
@@ -857,6 +860,7 @@ export function RifaDashboard({
     id,
     name: participantMap.get(id)?.studentName,
     className: participantMap.get(id)?.studentClass,
+    grade: participantMap.get(id)?.studentGrade,
     campaigns: participantMap.get(id)?.tickets ?? {},
   }));
 
@@ -950,6 +954,7 @@ export function RifaDashboard({
         Campanha: campaigns.find((campaign) => campaign.id === donation.campaignId)?.name ?? "--",
         Aluno: donation.studentName ?? donation.studentId,
         Turma: donation.studentClass ?? "",
+        Série: donation.studentGrade ?? "",
         Produtos: donation.products
           ?.map((p) => `${p.product}: ${p.quantity} ${p.unit || ""}`)
           .join(", ") || "N/A",
@@ -1192,6 +1197,7 @@ export function RifaDashboard({
                       <TableHead>Campanha</TableHead>
                       <TableHead>Aluno</TableHead>
                       <TableHead>Turma</TableHead>
+                      <TableHead>Série</TableHead>
                       <TableHead>Tipo de item</TableHead>
                       <TableHead>Quantidade</TableHead>
                     </TableRow>
@@ -1210,6 +1216,7 @@ export function RifaDashboard({
                           </TableCell>
                           <TableCell>{donation.studentName ?? donation.studentId}</TableCell>
                           <TableCell>{donation.studentClass ?? "--"}</TableCell>
+                          <TableCell>{donation.studentGrade ?? "--"}</TableCell>
                           <TableCell>
                             {donation.products?.map((product) => product.product).join(", ") || "--"}
                           </TableCell>
@@ -1244,6 +1251,7 @@ export function RifaDashboard({
                     <TableRow>
                       <TableHead>Aluno</TableHead>
                       <TableHead>Turma</TableHead>
+                      <TableHead>Série</TableHead>
                       <TableHead>Campanhas</TableHead>
                       <TableHead>Total de bilhetes</TableHead>
                       <TableHead>Ações</TableHead>
@@ -1260,6 +1268,7 @@ export function RifaDashboard({
                         <TableRow key={participant.id}>
                           <TableCell>{participant.name ?? participant.id}</TableCell>
                           <TableCell>{participant.className ?? "--"}</TableCell>
+                          <TableCell>{participant.grade ?? "--"}</TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               {campaignsEntries.map(([campaignId, value]) => (
@@ -1310,6 +1319,7 @@ export function RifaDashboard({
                       <TableHead>Nº da rifa</TableHead>
                       <TableHead>Aluno</TableHead>
                       <TableHead>Turma</TableHead>
+                      <TableHead>Série</TableHead>
                       <TableHead>Campanha</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Data de criação</TableHead>
@@ -1321,6 +1331,7 @@ export function RifaDashboard({
                         <TableCell className="font-semibold">#{ticket.ticketNumber}</TableCell>
                         <TableCell>{ticket.studentName ?? ticket.studentId ?? "--"}</TableCell>
                         <TableCell>{ticket.studentClass ?? "--"}</TableCell>
+                        <TableCell>{ticket.studentGrade ?? "--"}</TableCell>
                         <TableCell>
                           {campaigns.find((campaign) => campaign.id === ticket.campaignId)?.name ?? ticket.campaignId}
                         </TableCell>
