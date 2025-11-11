@@ -35,24 +35,8 @@ export function StudentCombobox({
   disabled = false,
 }: StudentComboboxProps) {
   const [open, setOpen] = React.useState(false);
-  const [search, setSearch] = React.useState("");
 
   const selectedStudent = students.find((student) => student.id === value);
-
-  const filteredStudents = React.useMemo(() => {
-    if (!search) return students;
-
-    const searchLower = search.toLowerCase();
-    return students.filter(
-      (student) =>
-        student.fullName.toLowerCase().includes(searchLower) ||
-        student.class.toLowerCase().includes(searchLower) ||
-        formatGradeLabel(student.grade).toLowerCase().includes(searchLower) ||
-        student.id.toLowerCase().includes(searchLower) ||
-        (student.registrationNumber &&
-          student.registrationNumber.toLowerCase().includes(searchLower))
-    );
-  }, [students, search]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -78,57 +62,62 @@ export function StudentCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0" align="start">
-        <Command shouldFilter={false}>
-          <CommandInput
-            placeholder="Buscar por nome, série, turma ou matrícula..."
-            value={search}
-            onValueChange={setSearch}
-          />
+        <Command>
+          <CommandInput placeholder="Buscar por nome, série, turma ou matrícula..." />
           <CommandList>
             <CommandEmpty>Nenhum aluno encontrado.</CommandEmpty>
             <CommandGroup>
-              {filteredStudents.map((student) => (
-                <CommandItem
-                  key={student.id}
-                  value={student.id}
-                  onSelect={() => {
-                    onValueChange(student.id === value ? "" : student.id);
-                    setOpen(false);
-                    setSearch("");
-                  }}
-                  className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3"
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4 shrink-0",
-                      value === student.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium truncate">
-                        {student.fullName}
-                      </span>
-                      {student.registrationNumber && (
-                        <span className="text-xs text-muted-foreground">
-                          Mat: {student.registrationNumber}
+              {students.map((student) => {
+                const keywords = [
+                  student.class,
+                  formatGradeLabel(student.grade),
+                  student.registrationNumber || "",
+                  student.shift || "",
+                ].join(" ");
+
+                return (
+                  <CommandItem
+                    key={student.id}
+                    value={student.fullName}
+                    keywords={[keywords]}
+                    onSelect={() => {
+                      onValueChange(student.id === value ? "" : student.id);
+                      setOpen(false);
+                    }}
+                    className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3"
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4 shrink-0",
+                        value === student.id ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium truncate">
+                          {student.fullName}
                         </span>
-                      )}
+                        {student.registrationNumber && (
+                          <span className="text-xs text-muted-foreground">
+                            Mat: {student.registrationNumber}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{formatGradeLabel(student.grade)}</span>
+                        <span>•</span>
+                        <span>Turma {student.class}</span>
+                        {student.shift && (
+                          <>
+                            <span>•</span>
+                            <span>{student.shift}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{formatGradeLabel(student.grade)}</span>
-                      <span>•</span>
-                      <span>Turma {student.class}</span>
-                      {student.shift && (
-                        <>
-                          <span>•</span>
-                          <span>{student.shift}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CommandItem>
-              ))}
+                  </CommandItem>
+                );
+              })}
             </CommandGroup>
           </CommandList>
         </Command>
