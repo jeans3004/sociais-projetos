@@ -35,11 +35,37 @@ export function StudentCombobox({
   disabled = false,
 }: StudentComboboxProps) {
   const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
 
   const selectedStudent = students.find((student) => student.id === value);
 
+  const filteredStudents = React.useMemo(() => {
+    if (!search) return students;
+
+    const searchLower = search.toLowerCase();
+    return students.filter((student) => {
+      const searchableText = [
+        student.fullName,
+        student.class,
+        formatGradeLabel(student.grade),
+        student.registrationNumber || "",
+        student.shift || "",
+      ].join(" ").toLowerCase();
+
+      return searchableText.includes(searchLower);
+    });
+  }, [students, search]);
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(newOpen) => {
+        setOpen(newOpen);
+        if (!newOpen) {
+          setSearch("");
+        }
+      }}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -62,29 +88,25 @@ export function StudentCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Buscar por nome, série, turma ou matrícula..." />
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Buscar por nome, série, turma ou matrícula..."
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
             <CommandEmpty>Nenhum aluno encontrado.</CommandEmpty>
             <CommandGroup>
-              {students.map((student) => {
-                const keywords = [
-                  student.class,
-                  formatGradeLabel(student.grade),
-                  student.registrationNumber || "",
-                  student.shift || "",
-                ].join(" ");
-
-                return (
+              {filteredStudents.map((student) => (
                   <CommandItem
                     key={student.id}
-                    value={student.fullName}
-                    keywords={[keywords]}
+                    value={student.id}
                     onSelect={() => {
                       onValueChange(student.id === value ? "" : student.id);
                       setOpen(false);
                     }}
-                    className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3"
+                    disabled={false}
+                    className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3 !opacity-100 ![pointer-events:all]"
                   >
                     <Check
                       className={cn(
@@ -116,8 +138,7 @@ export function StudentCombobox({
                       </div>
                     </div>
                   </CommandItem>
-                );
-              })}
+              ))}
             </CommandGroup>
           </CommandList>
         </Command>
