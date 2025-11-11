@@ -161,6 +161,18 @@ export async function registerRaffleTicketsAction(
   );
   let ticketNumbers: number[] = [];
 
+  // Buscar números existentes ANTES da transação para evitar duplicatas
+  const existingTicketsSnapshot = await getDocs(
+    query(ticketsRef, where("campaignId", "==", input.campaignId))
+  );
+  const existingNumbers = new Set<number>();
+  existingTicketsSnapshot.forEach((doc) => {
+    const data = doc.data();
+    if (data.ticketNumber) {
+      existingNumbers.add(data.ticketNumber);
+    }
+  });
+
   await runTransaction(db, async (transaction) => {
     const campaignSnapshot = await transaction.get(campaignRef);
     if (!campaignSnapshot.exists()) {
@@ -193,18 +205,6 @@ export async function registerRaffleTicketsAction(
     if (endDate && now > endDate) {
       throw new Error("A campanha já foi encerrada");
     }
-
-    // Buscar números existentes para evitar duplicatas
-    const existingTicketsSnapshot = await getDocs(
-      query(ticketsRef, where("campaignId", "==", input.campaignId))
-    );
-    const existingNumbers = new Set<number>();
-    existingTicketsSnapshot.forEach((doc) => {
-      const data = doc.data();
-      if (data.ticketNumber) {
-        existingNumbers.add(data.ticketNumber);
-      }
-    });
 
     // Gerar números aleatórios únicos
     ticketNumbers = generateUniqueRandomNumbers(
