@@ -91,8 +91,8 @@ export function StudentCombobox({
                 <CommandItem
                   key={student.id}
                   value={student.id}
-                  onSelect={(currentValue) => {
-                    onValueChange(currentValue === value ? "" : currentValue);
+                  onSelect={() => {
+                    onValueChange(student.id === value ? "" : student.id);
                     setOpen(false);
                     setSearch("");
                   }}
