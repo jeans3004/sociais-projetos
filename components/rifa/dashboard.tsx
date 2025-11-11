@@ -8,10 +8,11 @@ import {
   useState,
   useTransition,
 } from "react";
-import { CalendarDays, Info, ListFilter, Plus, Sparkles, Ticket } from "lucide-react";
+import { CalendarDays, Download, Info, ListFilter, Plus, Sparkles, Ticket } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Timestamp } from "firebase/firestore";
+import * as XLSX from "xlsx";
 
 import { StudentCombobox } from "@/components/StudentCombobox";
 import { FiltersBar } from "@/components/rifa/filters-bar";
@@ -49,6 +50,7 @@ import {
   RaffleDonation,
   RaffleDrawResult,
   RaffleTicket,
+  RaffleTimelineEntry,
   RegisterRaffleTicketsInput,
   TicketStatus,
   UpdateCampaignInput,
@@ -248,12 +250,12 @@ export function RifaDashboard({
 
   useEffect(() => {
     setDonationsLoading(true);
-    const filters: RaffleFilters = {
+    const raffleFilters: RaffleFilters = {
       campaignId: selectedCampaignId,
       periodStart: filters.startDate,
       periodEnd: filters.endDate,
     };
-    const unsubscribe = subscribeToDonations(filters, (items) => {
+    const unsubscribe = subscribeToDonations(raffleFilters, (items) => {
       setDonations(items);
       setDonationsLoading(false);
     });
@@ -893,7 +895,7 @@ export function RifaDashboard({
     const studentTickets = selectedCampaignTickets.filter(
       (ticket) => ticket.studentId === selectedDrawerStudentId
     );
-    const items = studentDonations.map((donation) => ({
+    const items: RaffleTimelineEntry[] = studentDonations.map((donation) => ({
       id: donation.id,
       type: "donation" as const,
       timestamp: donation.createdAt,
@@ -901,12 +903,14 @@ export function RifaDashboard({
         + (donation.ticketsGranted ? ` - ${donation.ticketsGranted} rifas` : ""),
     }));
     studentTickets.forEach((ticket) => {
-      items.push({
-        id: `${ticket.id}-assigned`,
-        type: "assignment" as const,
-        timestamp: ticket.createdAt,
-        title: `Bilhete #${ticket.ticketNumber} atribuído`,
-      });
+      if (ticket.createdAt) {
+        items.push({
+          id: `${ticket.id}-assigned`,
+          type: "assignment" as const,
+          timestamp: ticket.createdAt,
+          title: `Bilhete #${ticket.ticketNumber} atribuído`,
+        });
+      }
       if (ticket.drawnAt) {
         items.push({
           id: `${ticket.id}-drawn`,
@@ -939,6 +943,44 @@ export function RifaDashboard({
       [key]: value,
     }));
   }, []);
+
+  const handleExportExcel = useCallback(() => {
+    try {
+      const data = filteredDonations.map((donation) => ({
+        Campanha: campaigns.find((campaign) => campaign.id === donation.campaignId)?.name ?? "--",
+        Aluno: donation.studentName ?? donation.studentId,
+        Turma: donation.studentClass ?? "",
+        Produtos: donation.products
+          ?.map((p) => `${p.product}: ${p.quantity} ${p.unit || ""}`)
+          .join(", ") || "N/A",
+        "Total de Itens": donation.products?.reduce((sum, p) => sum + p.quantity, 0) ?? 0,
+        "Rifas Concedidas": donation.ticketsGranted ?? 0,
+        Data: formatTimestamp(donation.createdAt),
+        "Registrado por": donation.registeredByName ?? "Sistema",
+        Observações: donation.notes || "",
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Doações Rifas");
+      XLSX.writeFile(
+        wb,
+        `rifas_doacoes_${new Date().toISOString().split("T")[0]}.xlsx`
+      );
+
+      toast({
+        title: "Exportado com sucesso",
+        description: "O relatório de doações foi exportado para Excel.",
+      });
+    } catch (error) {
+      console.error("Error exporting:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao exportar",
+        description: "Não foi possível exportar o relatório.",
+      });
+    }
+  }, [filteredDonations, campaigns, toast]);
 
   const filteredText = useMemo(() => {
     switch (activeTab) {
@@ -998,7 +1040,7 @@ export function RifaDashboard({
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Campanhas</CardTitle>
-            <Info className="h-4 w-4 text-muted-foreground" title="Campanhas ativas no período atual" />
+            <Info className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -1015,7 +1057,7 @@ export function RifaDashboard({
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Doações</CardTitle>
-            <Info className="h-4 w-4 text-muted-foreground" title="Total de doações associadas às rifas" />
+            <Info className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -1032,7 +1074,7 @@ export function RifaDashboard({
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Participantes</CardTitle>
-            <Info className="h-4 w-4 text-muted-foreground" title="Alunos com pelo menos um bilhete atribuído" />
+            <Info className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -1049,7 +1091,7 @@ export function RifaDashboard({
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Bilhetes</CardTitle>
-            <Info className="h-4 w-4 text-muted-foreground" title="Distribuição de bilhetes disponíveis, atribuídos e sorteados" />
+            <Info className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground">
@@ -1120,11 +1162,17 @@ export function RifaDashboard({
 
         <TabsContent value="donations" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Doações relacionadas</CardTitle>
-              <CardDescription>
-                Visualize as doações conectadas às rifas dos alunos.
-              </CardDescription>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0">
+              <div className="space-y-1.5">
+                <CardTitle>Doações relacionadas</CardTitle>
+                <CardDescription>
+                  Visualize as doações conectadas às rifas dos alunos.
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleExportExcel} disabled={filteredDonations.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar Excel
+              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
               {filtersSummary ? (
