@@ -23,7 +23,7 @@ export function groupStudentsHierarchically(
 
   students.forEach((student) => {
     const coordination = student.coordination || "Sem Coordenação";
-    const grade = formatGradeLabel(student.grade);
+    const grade = formatGradeLabel(student.grade, student.coordination);
     const className = student.class || "Sem Turma";
 
     // Initialize coordination if doesn't exist

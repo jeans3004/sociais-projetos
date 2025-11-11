@@ -58,15 +58,22 @@ export function formatProductQuantity(quantity: number, unit: string): string {
 
 /**
  * Formata série/ano conforme o nível de ensino
- * Ensino Médio (10-12): usa "série" (1ª Série, 2ª Série, 3ª Série)
+ * Ensino Médio (10-12 ou 1-3 com coordenação): usa "série" (1ª Série, 2ª Série, 3ª Série)
  * Ensino Fundamental (1-9): usa "ano" (1º Ano, 2º Ano, ..., 9º Ano)
  */
-export function formatGradeLabel(grade: number): string {
+export function formatGradeLabel(grade: number, coordination?: string): string {
+  // Se for Ensino Médio pela coordenação e grade 1-3, trata como série
+  if (coordination === "Ensino Médio" && grade >= 1 && grade <= 3) {
+    return `${grade}ª Série`;
+  }
+
+  // Se for Ensino Médio pelos números 10-12
   if (grade >= 10 && grade <= 12) {
     // Ensino Médio: converte 10->1ª, 11->2ª, 12->3ª
     const serie = grade - 9;
     return `${serie}ª Série`;
   }
+
   // Ensino Fundamental
   return `${grade}º Ano`;
 }

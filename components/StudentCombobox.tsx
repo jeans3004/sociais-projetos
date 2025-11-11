@@ -62,7 +62,7 @@ export function StudentCombobox({
       const searchableText = [
         student.fullName,
         student.class,
-        formatGradeLabel(student.grade),
+        formatGradeLabel(student.grade, student.coordination),
         student.registrationNumber || "",
         student.shift || "",
       ].join(" ").toLowerCase();
@@ -104,7 +104,7 @@ export function StudentCombobox({
             <div className="flex items-center gap-2 truncate">
               <span className="font-medium truncate">{selectedStudent.fullName}</span>
               <span className="text-xs text-muted-foreground">
-                {formatGradeLabel(selectedStudent.grade)} - {selectedStudent.class}
+                {formatGradeLabel(selectedStudent.grade, selectedStudent.coordination)} - {selectedStudent.class}
               </span>
             </div>
           ) : (
@@ -113,14 +113,14 @@ export function StudentCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[500px] p-0 max-h-[500px]" align="start">
+      <PopoverContent className="w-[500px] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder="Buscar por nome, série, turma ou matrícula..."
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList className="max-h-[450px]">
+          <CommandList className="max-h-[400px] overflow-y-auto">
             {search ? (
               // Modo de busca: mostrar resultados filtrados
               <>
@@ -155,7 +155,7 @@ export function StudentCombobox({
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>{formatGradeLabel(student.grade)}</span>
+                          <span>{formatGradeLabel(student.grade, student.coordination)}</span>
                           <span>•</span>
                           <span>Turma {student.class}</span>
                           {student.shift && (
