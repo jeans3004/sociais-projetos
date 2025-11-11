@@ -90,6 +90,7 @@ export default function RelatoriosPage() {
     try {
       const data = filteredDonations.map((d) => ({
         Aluno: d.studentName,
+        Turma: d.studentClass || "",
         Produtos: d.products.map(p => `${p.product}: ${p.quantity} ${p.unit}`).join(", "),
         "Total de Itens": d.products.reduce((sum, p) => sum + p.quantity, 0),
         Data: formatDate(d.date.toDate()),
@@ -218,6 +219,7 @@ export default function RelatoriosPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Aluno</TableHead>
+                  <TableHead>Turma</TableHead>
                   <TableHead>Itens</TableHead>
                   <TableHead>Data</TableHead>
                   <TableHead>Produtos</TableHead>
@@ -226,7 +228,7 @@ export default function RelatoriosPage() {
               <TableBody>
                 {filteredDonations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center">
+                    <TableCell colSpan={5} className="text-center">
                       Nenhuma doação encontrada no período.
                     </TableCell>
                   </TableRow>
@@ -234,6 +236,7 @@ export default function RelatoriosPage() {
                   filteredDonations.map((donation) => (
                     <TableRow key={donation.id}>
                       <TableCell>{donation.studentName}</TableCell>
+                      <TableCell>{donation.studentClass || "-"}</TableCell>
                       <TableCell className="font-semibold text-green-600">
                         {donation.products.reduce((sum, p) => sum + p.quantity, 0)} itens
                       </TableCell>
