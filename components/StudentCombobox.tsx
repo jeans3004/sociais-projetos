@@ -48,6 +48,7 @@ export function StudentCombobox({
         student.fullName.toLowerCase().includes(searchLower) ||
         student.class.toLowerCase().includes(searchLower) ||
         formatGradeLabel(student.grade).toLowerCase().includes(searchLower) ||
+        student.id.toLowerCase().includes(searchLower) ||
         (student.registrationNumber &&
           student.registrationNumber.toLowerCase().includes(searchLower))
     );

@@ -21,9 +21,17 @@ export function mapTicket(
   doc: QueryDocumentSnapshot<DocumentData>
 ): RaffleTicket {
   const data = doc.data();
+  const ticketNumber =
+    typeof data.ticketNumber === "number"
+      ? data.ticketNumber
+      : typeof data.number === "number"
+      ? data.number
+      : 0;
   return {
     id: doc.id,
     ...data,
+    ticketNumber,
+    number: ticketNumber,
   } as RaffleTicket;
 }
 
@@ -54,5 +62,11 @@ export function mapDraw(
   return {
     id: doc.id,
     ...data,
+    ticketNumber:
+      typeof data.ticketNumber === "number"
+        ? data.ticketNumber
+        : typeof data.number === "number"
+        ? data.number
+        : 0,
   } as RaffleDrawResult;
 }
