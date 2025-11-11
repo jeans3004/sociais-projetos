@@ -1,31 +1,41 @@
 import {
-  AssignTicketsInput,
+  CreateCampaignInput,
   DeterministicDrawInput,
   RaffleActionContext,
-  RegisterDonationInput,
+  RegisterRaffleTicketsInput,
+  UpdateCampaignInput,
 } from "@/lib/rifa/types";
 import {
-  assignTicketsAction,
-  registerDonationAction,
+  createCampaignAction,
+  registerRaffleTicketsAction,
   runDeterministicDrawAction,
+  updateCampaignAction,
 } from "@/server/actions/rifa";
 import { RifaDashboard } from "@/components/rifa/dashboard";
 
 export default function RifaPage() {
-  async function handleRegisterDonation(
-    input: RegisterDonationInput,
+  async function handleCreateCampaign(
+    input: CreateCampaignInput,
     context: RaffleActionContext
   ) {
     "use server";
-    return registerDonationAction(input, context);
+    return createCampaignAction(input, context);
   }
 
-  async function handleAssignTickets(
-    input: AssignTicketsInput,
+  async function handleUpdateCampaign(
+    input: UpdateCampaignInput,
     context: RaffleActionContext
   ) {
     "use server";
-    return assignTicketsAction(input, context);
+    return updateCampaignAction(input, context);
+  }
+
+  async function handleRegisterTickets(
+    input: RegisterRaffleTicketsInput,
+    context: RaffleActionContext
+  ) {
+    "use server";
+    return registerRaffleTicketsAction(input, context);
   }
 
   async function handleRunDraw(
@@ -38,8 +48,9 @@ export default function RifaPage() {
 
   return (
     <RifaDashboard
-      onRegisterDonation={handleRegisterDonation}
-      onAssignTickets={handleAssignTickets}
+      onCreateCampaign={handleCreateCampaign}
+      onUpdateCampaign={handleUpdateCampaign}
+      onRegisterTickets={handleRegisterTickets}
       onRunDraw={handleRunDraw}
     />
   );
