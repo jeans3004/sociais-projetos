@@ -1,25 +1,35 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { TicketStatus } from "@/lib/rifa/types";
 
-interface FiltersBarProps {
+export type FiltersValue = {
   studentQuery: string;
-  onStudentQueryChange: (value: string) => void;
   classQuery: string;
-  onClassQueryChange: (value: string) => void;
   status: TicketStatus | "all";
-  onStatusChange: (status: TicketStatus | "all") => void;
   ticketNumber: string;
-  onTicketNumberChange: (value: string) => void;
-  startDate?: Date | null;
-  endDate?: Date | null;
-  onStartDateChange: (value: Date | null) => void;
-  onEndDateChange: (value: Date | null) => void;
+  startDate: Date | null;
+  endDate: Date | null;
+};
+
+interface FiltersBarProps {
+  filters: FiltersValue;
+  onFiltersChange: <K extends keyof FiltersValue>(
+    key: K,
+    value: FiltersValue[K]
+  ) => void;
+  onApply: () => void;
   onClear: () => void;
 }
 
@@ -31,99 +41,107 @@ function formatInputDate(value?: Date | null) {
   return `${year}-${month}-${day}`;
 }
 
-export function FiltersBar({
-  studentQuery,
-  onStudentQueryChange,
-  classQuery,
-  onClassQueryChange,
-  status,
-  onStatusChange,
-  ticketNumber,
-  onTicketNumberChange,
-  startDate,
-  endDate,
-  onStartDateChange,
-  onEndDateChange,
-  onClear,
-}: FiltersBarProps) {
-  const statusOptions = useMemo(() => [
-    { value: "all", label: "Todos" },
-    { value: "available", label: "Disponíveis" },
-    { value: "assigned", label: "Atribuídos" },
-    { value: "redeemed", label: "Resgatados" },
-    { value: "canceled", label: "Cancelados" },
-  ], []);
+export function FiltersBar({ filters, onFiltersChange, onApply, onClear }: FiltersBarProps) {
+  const [expanded, setExpanded] = useState(true);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
+    setExpanded(mediaQuery.matches);
+  }, []);
+
+  const toggle = () => setExpanded((value) => !value);
 
   return (
-    <div className="grid gap-4 rounded-lg border bg-muted/40 p-4 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-      <div className="space-y-1">
-        <Label htmlFor="student-filter">Aluno</Label>
-        <Input
-          id="student-filter"
-          placeholder="Nome ou ID"
-          value={studentQuery}
-          onChange={(event) => onStudentQueryChange(event.target.value)}
-        />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-muted-foreground">Ajuste os filtros para refinar os resultados.</p>
+        <Button variant="ghost" size="sm" className="md:hidden" onClick={toggle}>
+          {expanded ? "Recolher" : "Expandir"}
+        </Button>
       </div>
-      <div className="space-y-1">
-        <Label htmlFor="class-filter">Turma</Label>
-        <Input
-          id="class-filter"
-          placeholder="Ex: 6º Ano B"
-          value={classQuery}
-          onChange={(event) => onClassQueryChange(event.target.value)}
-        />
+      <div className={`${expanded ? "grid" : "hidden md:grid"} grid-cols-1 gap-4 md:grid-cols-2`}>
+        <div className="space-y-2">
+          <Label htmlFor="filter-student">Aluno</Label>
+          <Input
+            id="filter-student"
+            placeholder="Nome ou ID"
+            value={filters.studentQuery}
+            onChange={(event) => onFiltersChange("studentQuery", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-class">Turma</Label>
+          <Input
+            id="filter-class"
+            placeholder="Ex.: 6º Ano B"
+            value={filters.classQuery}
+            onChange={(event) => onFiltersChange("classQuery", event.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-status">Status das rifas</Label>
+          <Select
+            value={filters.status}
+            onValueChange={(value) => onFiltersChange("status", value as TicketStatus | "all")}
+          >
+            <SelectTrigger id="filter-status">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="available">Disponíveis</SelectItem>
+              <SelectItem value="assigned">Atribuídos</SelectItem>
+              <SelectItem value="drawn">Sorteados</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-ticket">Nº da rifa</Label>
+          <Input
+            id="filter-ticket"
+            placeholder="Ex.: 125"
+            inputMode="numeric"
+            value={filters.ticketNumber}
+            onChange={(event) =>
+              onFiltersChange("ticketNumber", event.target.value.replace(/[^0-9]/g, ""))
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-start">Início</Label>
+          <Input
+            id="filter-start"
+            type="date"
+            value={formatInputDate(filters.startDate)}
+            onChange={(event) =>
+              onFiltersChange(
+                "startDate",
+                event.target.value ? new Date(event.target.value) : null
+              )
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="filter-end">Fim</Label>
+          <Input
+            id="filter-end"
+            type="date"
+            value={formatInputDate(filters.endDate)}
+            onChange={(event) =>
+              onFiltersChange(
+                "endDate",
+                event.target.value ? new Date(event.target.value) : null
+              )
+            }
+          />
+        </div>
       </div>
-      <div className="space-y-1">
-        <Label htmlFor="status-filter">Status das rifas</Label>
-        <Select value={status} onValueChange={(value) => onStatusChange(value as TicketStatus | "all")}>
-          <SelectTrigger id="status-filter">
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="ticket-number-filter">Nº da rifa</Label>
-        <Input
-          id="ticket-number-filter"
-          placeholder="Ex: 125"
-          value={ticketNumber}
-          onChange={(event) => onTicketNumberChange(event.target.value.replace(/[^0-9]/g, ""))}
-        />
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="start-date">Início</Label>
-        <Input
-          id="start-date"
-          type="date"
-          value={formatInputDate(startDate)}
-          onChange={(event) =>
-            onStartDateChange(event.target.value ? new Date(event.target.value) : null)
-          }
-        />
-      </div>
-      <div className="space-y-1">
-        <Label htmlFor="end-date">Fim</Label>
-        <Input
-          id="end-date"
-          type="date"
-          value={formatInputDate(endDate)}
-          onChange={(event) =>
-            onEndDateChange(event.target.value ? new Date(event.target.value) : null)
-          }
-        />
-      </div>
-      <div className="md:col-span-2 lg:col-span-4 xl:col-span-6 flex justify-end">
-        <Button variant="ghost" onClick={onClear}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button variant="outline" onClick={onClear}>
           Limpar filtros
         </Button>
+        <Button onClick={onApply}>Aplicar filtros</Button>
       </div>
     </div>
   );

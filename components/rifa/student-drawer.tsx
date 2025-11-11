@@ -3,7 +3,8 @@
 import { Fragment } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
+
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -11,27 +12,16 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
-import {
-  AssignTicketsInput,
-  RaffleTimelineEntry,
-  RaffleTicket,
-  StudentCampaignStats,
-} from "@/lib/rifa/types";
+import { RaffleTimelineEntry, RaffleTicket } from "@/lib/rifa/types";
 import { Timestamp } from "firebase/firestore";
 
 interface StudentDrawerProps {
   open: boolean;
   onOpenChange: (value: boolean) => void;
-  campaignId?: string;
   studentName?: string;
   studentClass?: string;
-  stats?: StudentCampaignStats | null;
   tickets: RaffleTicket[];
   timeline: RaffleTimelineEntry[];
-  onAssignTickets?: (input: AssignTicketsInput) => void;
-  onTransferTickets?: () => void;
-  onPrintInventory?: () => void;
 }
 
 function toDate(value?: Timestamp | Date | null) {
@@ -60,18 +50,13 @@ function formatTimestamp(date?: Date) {
 export function StudentDrawer({
   open,
   onOpenChange,
-  campaignId,
   studentName,
   studentClass,
-  stats,
   tickets,
   timeline,
-  onAssignTickets,
-  onTransferTickets,
-  onPrintInventory,
 }: StudentDrawerProps) {
   const assignedTickets = tickets.filter((ticket) => ticket.status === "assigned");
-  const redeemedTickets = tickets.filter((ticket) => ticket.status === "redeemed");
+  const drawnTickets = tickets.filter((ticket) => ticket.status === "drawn");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -89,15 +74,11 @@ export function StudentDrawer({
             <div className="mt-3 grid grid-cols-2 gap-3">
               <div className="rounded-md bg-background p-3 shadow-sm">
                 <p className="text-sm text-muted-foreground">Atribuídas</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {stats?.ticketsAssigned ?? assignedTickets.length}
-                </p>
+                <p className="text-2xl font-bold text-foreground">{assignedTickets.length}</p>
               </div>
               <div className="rounded-md bg-background p-3 shadow-sm">
-                <p className="text-sm text-muted-foreground">Resgatadas</p>
-                <p className="text-2xl font-bold text-foreground">
-                  {stats?.ticketsRedeemed ?? redeemedTickets.length}
-                </p>
+                <p className="text-sm text-muted-foreground">Sorteadas</p>
+                <p className="text-2xl font-bold text-foreground">{drawnTickets.length}</p>
               </div>
             </div>
           </div>
@@ -105,38 +86,6 @@ export function StudentDrawer({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-muted-foreground">Inventário</p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                    onClick={() =>
-                      onAssignTickets?.({
-                      campaignId: campaignId ?? stats?.campaignId ?? "",
-                      studentId: stats?.studentId ?? "",
-                      quantity: 1,
-                    })
-                  }
-                  disabled={!onAssignTickets || !(stats?.studentId && (campaignId ?? stats?.campaignId))}
-                >
-                  Atribuir
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onTransferTickets}
-                  disabled={!onTransferTickets}
-                >
-                  Transferir
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={onPrintInventory}
-                  disabled={!onPrintInventory}
-                >
-                  Imprimir
-                </Button>
-              </div>
             </div>
             {tickets.length === 0 ? (
               <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
@@ -150,20 +99,18 @@ export function StudentDrawer({
                     className="flex items-center justify-between rounded-lg border bg-background p-3 text-sm"
                   >
                     <div>
-                      <p className="font-medium text-foreground">Rifa #{ticket.number}</p>
+                      <p className="font-medium text-foreground">Rifa #{ticket.ticketNumber ?? ticket.number}</p>
                       <p className="text-xs text-muted-foreground">
-                        {ticket.assignedAt
-                          ? `Atribuída em ${formatTimestamp(toDate(ticket.assignedAt))}`
+                        {ticket.createdAt
+                          ? `Criada em ${formatTimestamp(toDate(ticket.createdAt))}`
                           : "Sem registro"}
                       </p>
                     </div>
-                    <Badge variant={ticket.status === "redeemed" ? "secondary" : "outline"}>
+                    <Badge variant={ticket.status === "drawn" ? "secondary" : "outline"}>
                       {ticket.status === "assigned"
-                        ? "Em posse"
-                        : ticket.status === "redeemed"
-                        ? "Resgatada"
-                        : ticket.status === "canceled"
-                        ? "Cancelada"
+                        ? "Atribuída"
+                        : ticket.status === "drawn"
+                        ? "Sorteada"
                         : "Disponível"}
                     </Badge>
                   </div>
@@ -199,7 +146,7 @@ export function StudentDrawer({
                           {item.ticketNumbers.map((number) => (
                             <span
                               key={number}
-                              className="rounded-full border px-2 py-1"
+                              className="rounded-md bg-muted px-2 py-1 font-mono text-[11px] text-foreground"
                             >
                               #{number}
                             </span>

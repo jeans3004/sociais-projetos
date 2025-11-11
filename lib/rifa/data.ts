@@ -95,9 +95,9 @@ export function subscribeToTickets(
     constraints.push(where("studentId", "==", filters.studentId));
   }
   if (filters.ticketNumber != null) {
-    constraints.push(where("number", "==", filters.ticketNumber));
+    constraints.push(where("ticketNumber", "==", filters.ticketNumber));
   }
-  const q = query(baseRef, ...constraints, orderBy("number", "asc"));
+  const q = query(baseRef, ...constraints, orderBy("ticketNumber", "asc"));
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.docs.map(mapTicket));
   });
@@ -153,7 +153,7 @@ export async function getTicketByNumber(
   const q = query(
     ticketsRef,
     where("campaignId", "==", campaignId),
-    where("number", "==", number),
+    where("ticketNumber", "==", number),
     limit(1)
   );
   const snapshot = await getDocs(q);
