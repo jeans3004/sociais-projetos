@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
-import { StudentCombobox } from "@/components/StudentCombobox";
+import { StudentMultiSelect } from "@/components/StudentMultiSelect";
 import { TeacherMultiSelect } from "@/components/TeacherMultiSelect";
 import {
   Select,
@@ -61,6 +61,7 @@ export function DonationForm({
     defaultValues: {
       donorType: "student",
       studentId: "",
+      studentIds: [],
       teacherId: "",
       teacherIds: [],
       products: [{ product: "Arroz", quantity: 1, unit: "kg" }],
@@ -75,6 +76,7 @@ export function DonationForm({
   });
 
   const studentIdValue = watch("studentId");
+  const studentIdsValue = watch("studentIds");
   const teacherIdValue = watch("teacherId");
   const teacherIdsValue = watch("teacherIds");
   const products = watch("products");
@@ -94,6 +96,7 @@ export function DonationForm({
       reset({
         donorType: type,
         studentId: donation.studentId || "",
+        studentIds: donation.studentIds || [],
         teacherId: donation.teacherId || "",
         teacherIds: donation.teacherIds || [],
         products: donation.products,
@@ -104,6 +107,7 @@ export function DonationForm({
       reset({
         donorType: "student",
         studentId: "",
+        studentIds: [],
         teacherId: "",
         teacherIds: [],
         products: [{ product: "Arroz", quantity: 1, unit: "kg" }],
@@ -167,6 +171,7 @@ export function DonationForm({
                 setValue("donorType", newType);
                 // Limpar os IDs ao trocar de tipo
                 setValue("studentId", "");
+                setValue("studentIds", []);
                 setValue("teacherId", "");
                 setValue("teacherIds", []);
               }}
@@ -181,18 +186,21 @@ export function DonationForm({
 
           {donorType === "student" ? (
             <div className="space-y-2">
-              <Label htmlFor="studentId">Aluno *</Label>
-              <StudentCombobox
+              <Label htmlFor="studentIds">Aluno(s) *</Label>
+              <StudentMultiSelect
                 students={students}
-                value={studentIdValue || ""}
-                onValueChange={(value) => setValue("studentId", value)}
-                placeholder="Digite para buscar um aluno..."
+                value={studentIdsValue || []}
+                onValueChange={(value) => setValue("studentIds", value)}
+                placeholder="Selecione um ou mais alunos..."
               />
-              {errors.studentId && (
+              {errors.studentIds && (
                 <p className="text-sm text-destructive">
-                  {errors.studentId.message}
+                  {errors.studentIds.message}
                 </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                💡 Selecione múltiplos alunos se necessário
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
