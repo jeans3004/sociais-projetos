@@ -158,7 +158,14 @@ export function StudentMultiSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[500px] p-0" align="start">
+      <PopoverContent
+        className="w-[500px] p-0"
+        align="start"
+        onWheel={(e) => {
+          // Permite scroll do mouse dentro do popover
+          e.stopPropagation();
+        }}
+      >
         <Command shouldFilter={false} className="overflow-hidden">
           <CommandInput
             placeholder="Buscar por nome, série, turma ou matrícula..."
@@ -190,7 +197,14 @@ export function StudentMultiSelect({
               </>
             )}
           </div>
-          <CommandList className="max-h-[400px] overflow-y-auto overflow-x-hidden">
+          <CommandList
+            className="max-h-[400px] overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent"
+            style={{ touchAction: 'pan-y' }}
+            onWheel={(e) => {
+              // Garante que o scroll do mouse funcione
+              e.stopPropagation();
+            }}
+          >
             {search ? (
               // Modo de busca: mostrar resultados filtrados com checkboxes
               <>

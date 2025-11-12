@@ -337,40 +337,90 @@ export async function updateDonation(
         }
       }
     } else if (data.donorType === "teacher") {
-      if (!data.teacherId) {
-        throw new Error("Teacher ID is required");
+      // Suporta seleção múltipla (teacherIds) ou única (teacherId)
+      const teacherIds = data.teacherIds && data.teacherIds.length > 0
+        ? data.teacherIds
+        : (data.teacherId ? [data.teacherId] : []);
+
+      if (teacherIds.length === 0) {
+        throw new Error("Teacher ID(s) required");
       }
 
-      const teacher = await getTeacher(data.teacherId);
-      if (!teacher) {
-        throw new Error("Teacher not found");
+      // Buscar todos os professores selecionados
+      const teachersPromises = teacherIds.map(id => getTeacher(id));
+      const teachers = await Promise.all(teachersPromises);
+
+      // Verificar se todos foram encontrados
+      const missingTeachers = teachers.filter(t => !t);
+      if (missingTeachers.length > 0) {
+        throw new Error("One or more teachers not found");
+      }
+
+      const validTeachers = teachers.filter(t => t !== null) as any[];
+
+      // Determinar o nome do doador
+      let donorName: string;
+      let isCorpoDocente = false;
+
+      // Buscar total de professores ativos para comparar
+      const allTeachers = await getTeachers();
+      const activeTeachers = allTeachers.filter(t => t.status === "active");
+
+      if (teacherIds.length === activeTeachers.length && activeTeachers.length > 0) {
+        // Todos os professores ativos foram selecionados
+        donorName = "Corpo Docente";
+        isCorpoDocente = true;
+      } else if (validTeachers.length === 1) {
+        donorName = validTeachers[0].fullName;
+      } else {
+        donorName = `${validTeachers.length} professores`;
       }
 
       updateData = {
         ...updateData,
-        teacherId: data.teacherId,
-        donorName: teacher.fullName,
-        teacherDepartment: teacher.department,
+        teacherIds: teacherIds,
+        donorName: donorName,
+        isCorpoDocente: isCorpoDocente,
+        // Manter teacherId para compatibilidade (primeiro da lista)
+        teacherId: teacherIds[0],
+        teacherDepartment: validTeachers.length === 1 ? validTeachers[0].department : undefined,
       };
 
       // Handle donor change or total change
       const existingDonorType = existingDonation.donorType || "student";
+      const existingTeacherIds = existingDonation.teacherIds || (existingDonation.teacherId ? [existingDonation.teacherId] : []);
 
-      if (existingDonorType === "student" && existingDonation.studentId) {
-        // Changed from student to teacher
-        await updateStudentTotalDonations(existingDonation.studentId, -previousTotal);
-        await updateTeacherTotalDonations(data.teacherId, newTotal);
-      } else if (existingDonation.teacherId !== data.teacherId) {
-        // Changed teacher
-        if (existingDonation.teacherId) {
-          await updateTeacherTotalDonations(existingDonation.teacherId, -previousTotal);
+      if (existingDonorType === "student") {
+        // Changed from student to teacher - remove from all students, add to all teachers
+        const existingStudentIds = existingDonation.studentIds || (existingDonation.studentId ? [existingDonation.studentId] : []);
+        for (const studentId of existingStudentIds) {
+          await updateStudentTotalDonations(studentId, -previousTotal);
         }
-        await updateTeacherTotalDonations(data.teacherId, newTotal);
+        for (const teacherId of teacherIds) {
+          await updateTeacherTotalDonations(teacherId, newTotal);
+        }
       } else {
-        // Same teacher, check if total changed
+        // Handle teacher changes
+        const removedTeachers = existingTeacherIds.filter(id => !teacherIds.includes(id));
+        const addedTeachers = teacherIds.filter(id => !existingTeacherIds.includes(id));
+        const unchangedTeachers = teacherIds.filter(id => existingTeacherIds.includes(id));
+
+        // Remove from teachers that are no longer selected
+        for (const teacherId of removedTeachers) {
+          await updateTeacherTotalDonations(teacherId, -previousTotal);
+        }
+
+        // Add to newly selected teachers
+        for (const teacherId of addedTeachers) {
+          await updateTeacherTotalDonations(teacherId, newTotal);
+        }
+
+        // Update unchanged teachers if total changed
         const difference = newTotal - previousTotal;
         if (difference !== 0) {
-          await updateTeacherTotalDonations(data.teacherId, difference);
+          for (const teacherId of unchangedTeachers) {
+            await updateTeacherTotalDonations(teacherId, difference);
+          }
         }
       }
     }
