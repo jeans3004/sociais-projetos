@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 import { StudentCombobox } from "@/components/StudentCombobox";
-import { TeacherCombobox } from "@/components/TeacherCombobox";
+import { TeacherMultiSelect } from "@/components/TeacherMultiSelect";
 import {
   Select,
   SelectContent,
@@ -62,6 +62,7 @@ export function DonationForm({
       donorType: "student",
       studentId: "",
       teacherId: "",
+      teacherIds: [],
       products: [{ product: "Arroz", quantity: 1, unit: "kg" }],
       date: new Date(),
       notes: "",
@@ -75,6 +76,7 @@ export function DonationForm({
 
   const studentIdValue = watch("studentId");
   const teacherIdValue = watch("teacherId");
+  const teacherIdsValue = watch("teacherIds");
   const products = watch("products");
 
   // Verifica se algum produto é "Outros"
@@ -93,6 +95,7 @@ export function DonationForm({
         donorType: type,
         studentId: donation.studentId || "",
         teacherId: donation.teacherId || "",
+        teacherIds: donation.teacherIds || [],
         products: donation.products,
         date: donation.date.toDate(),
         notes: donation.notes || "",
@@ -102,6 +105,7 @@ export function DonationForm({
         donorType: "student",
         studentId: "",
         teacherId: "",
+        teacherIds: [],
         products: [{ product: "Arroz", quantity: 1, unit: "kg" }],
         date: new Date(),
         notes: "",
@@ -164,6 +168,7 @@ export function DonationForm({
                 // Limpar os IDs ao trocar de tipo
                 setValue("studentId", "");
                 setValue("teacherId", "");
+                setValue("teacherIds", []);
               }}
               className="w-full"
             >
@@ -191,18 +196,21 @@ export function DonationForm({
             </div>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="teacherId">Professor *</Label>
-              <TeacherCombobox
+              <Label htmlFor="teacherIds">Professor(es) *</Label>
+              <TeacherMultiSelect
                 teachers={teachers}
-                value={teacherIdValue || ""}
-                onValueChange={(value) => setValue("teacherId", value)}
-                placeholder="Digite para buscar um professor..."
+                value={teacherIdsValue || []}
+                onValueChange={(value) => setValue("teacherIds", value)}
+                placeholder="Selecione um ou mais professores..."
               />
-              {errors.teacherId && (
+              {errors.teacherIds && (
                 <p className="text-sm text-destructive">
-                  {errors.teacherId.message}
+                  {errors.teacherIds.message}
                 </p>
               )}
+              <p className="text-xs text-muted-foreground">
+                💡 Selecione todos para registrar como &quot;Corpo Docente&quot;
+              </p>
             </div>
           )}
 

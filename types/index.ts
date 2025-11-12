@@ -108,10 +108,12 @@ export interface Donation {
   donorType: "student" | "teacher"; // Tipo de doador
   studentId?: string; // ID do aluno (se donorType = "student")
   teacherId?: string; // ID do professor (se donorType = "teacher")
+  teacherIds?: string[]; // IDs dos professores (seleção múltipla)
   donorName?: string; // Nome do doador (desnormalizado)
   studentClass?: string; // Turma do aluno (desnormalizado)
   studentGrade?: string; // Série do aluno (desnormalizado)
   teacherDepartment?: string; // Departamento do professor (desnormalizado)
+  isCorpoDocente?: boolean; // true se todos os professores foram selecionados
   // Legacy fields for backward compatibility
   studentName?: string; // @deprecated - use donorName
   products: ProductDonation[]; // Lista de produtos doados
@@ -130,6 +132,7 @@ export interface DonationFormData {
   donorType: "student" | "teacher";
   studentId?: string;
   teacherId?: string;
+  teacherIds?: string[]; // Seleção múltipla de professores
   products: ProductDonation[];
   date: Date;
   receiptUrl?: string;

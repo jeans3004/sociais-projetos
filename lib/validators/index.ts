@@ -46,6 +46,7 @@ export const donationSchema = z.object({
   donorType: z.enum(["student", "teacher"]),
   studentId: z.string().optional(),
   teacherId: z.string().optional(),
+  teacherIds: z.array(z.string()).optional(),
   products: z
     .array(productDonationSchema)
     .min(1, "Adicione pelo menos um produto"),
@@ -54,11 +55,13 @@ export const donationSchema = z.object({
   notes: z.string().optional(),
 }).refine(
   (data) => {
-    // Validar que studentId ou teacherId está presente conforme o donorType
+    // Validar que studentId ou teacherId/teacherIds está presente conforme o donorType
     if (data.donorType === "student") {
       return data.studentId && data.studentId.trim().length > 0;
     } else if (data.donorType === "teacher") {
-      return data.teacherId && data.teacherId.trim().length > 0;
+      // Aceita teacherId (compatibilidade) ou teacherIds (novo)
+      return (data.teacherId && data.teacherId.trim().length > 0) ||
+             (data.teacherIds && data.teacherIds.length > 0);
     }
     return false;
   },
