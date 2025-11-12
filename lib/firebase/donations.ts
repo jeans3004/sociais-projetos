@@ -21,6 +21,20 @@ import { formatGradeLabel } from "@/lib/utils";
 const COLLECTION_NAME = "donations";
 
 /**
+ * Remove undefined fields from an object
+ * Firebase doesn't accept undefined values
+ */
+function removeUndefinedFields(obj: Record<string, any>): Record<string, any> {
+  const cleaned: Record<string, any> = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      cleaned[key] = obj[key];
+    }
+  }
+  return cleaned;
+}
+
+/**
  * Get all donations
  */
 export async function getDonations(): Promise<Donation[]> {
@@ -207,9 +221,11 @@ export async function createDonation(
       }
     }
 
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), donationData);
+    // Remove undefined fields before saving to Firebase
+    const cleanedData = removeUndefinedFields(donationData);
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), cleanedData);
 
-    return { id: docRef.id, ...donationData } as Donation;
+    return { id: docRef.id, ...cleanedData } as Donation;
   } catch (error) {
     console.error("Error creating donation:", error);
     throw error;
@@ -425,7 +441,9 @@ export async function updateDonation(
       }
     }
 
-    await updateDoc(donationRef, updateData);
+    // Remove undefined fields before updating Firebase
+    const cleanedUpdateData = removeUndefinedFields(updateData);
+    await updateDoc(donationRef, cleanedUpdateData);
   } catch (error) {
     console.error("Error updating donation:", error);
     throw error;
