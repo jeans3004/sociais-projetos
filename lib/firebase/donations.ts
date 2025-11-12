@@ -15,6 +15,8 @@ import {
 import { db } from "./config";
 import { Donation, DonationFormData } from "@/types";
 import { updateStudentTotalDonations, getStudent } from "./students";
+import { updateTeacherTotalDonations, getTeacher } from "./teachers";
+import { formatGradeLabel } from "@/lib/utils";
 
 const COLLECTION_NAME = "donations";
 
@@ -83,23 +85,16 @@ export async function createDonation(
   userName: string
 ): Promise<Donation> {
   try {
-    // Get student info
-    const student = await getStudent(data.studentId);
-    if (!student) {
-      throw new Error("Student not found");
-    }
-
-    const donationData = {
-      ...data,
+    let donationData: Record<string, any> = {
+      donorType: data.donorType,
       date: Timestamp.fromDate(data.date),
-      studentName: student.fullName,
-      studentClass: student.class,
+      products: data.products,
+      notes: data.notes,
+      receiptUrl: data.receiptUrl,
       registeredBy: userId,
       registeredByName: userName,
       createdAt: Timestamp.now(),
     };
-
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), donationData);
 
     // Calculate total items donated
     const totalItems = data.products.reduce(
@@ -107,8 +102,49 @@ export async function createDonation(
       0
     );
 
-    // Update student's total donations count
-    await updateStudentTotalDonations(data.studentId, totalItems);
+    if (data.donorType === "student") {
+      if (!data.studentId) {
+        throw new Error("Student ID is required");
+      }
+
+      const student = await getStudent(data.studentId);
+      if (!student) {
+        throw new Error("Student not found");
+      }
+
+      donationData = {
+        ...donationData,
+        studentId: data.studentId,
+        donorName: student.fullName,
+        studentName: student.fullName, // Legacy field
+        studentClass: student.class,
+        studentGrade: formatGradeLabel(student.grade, student.coordination),
+      };
+
+      // Update student's total donations count
+      await updateStudentTotalDonations(data.studentId, totalItems);
+    } else if (data.donorType === "teacher") {
+      if (!data.teacherId) {
+        throw new Error("Teacher ID is required");
+      }
+
+      const teacher = await getTeacher(data.teacherId);
+      if (!teacher) {
+        throw new Error("Teacher not found");
+      }
+
+      donationData = {
+        ...donationData,
+        teacherId: data.teacherId,
+        donorName: teacher.fullName,
+        teacherDepartment: teacher.department,
+      };
+
+      // Update teacher's total donations count
+      await updateTeacherTotalDonations(data.teacherId, totalItems);
+    }
+
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), donationData);
 
     return { id: docRef.id, ...donationData } as Donation;
   } catch (error) {
@@ -134,11 +170,6 @@ export async function updateDonation(
       throw new Error("Donation not found");
     }
 
-    const student = await getStudent(data.studentId);
-    if (!student) {
-      throw new Error("Student not found");
-    }
-
     const previousTotal = existingDonation.products.reduce(
       (sum, product) => sum + product.quantity,
       0
@@ -149,27 +180,96 @@ export async function updateDonation(
       0
     );
 
-    const updateData = {
-      ...data,
+    let updateData: Record<string, any> = {
+      donorType: data.donorType,
       date: Timestamp.fromDate(data.date),
-      studentName: student.fullName,
-      studentClass: student.class,
+      products: data.products,
+      notes: data.notes,
+      receiptUrl: data.receiptUrl,
       updatedAt: Timestamp.now(),
       updatedBy: userId,
       updatedByName: userName,
-    } as Record<string, unknown>;
+    };
 
-    await updateDoc(donationRef, updateData);
+    if (data.donorType === "student") {
+      if (!data.studentId) {
+        throw new Error("Student ID is required");
+      }
 
-    if (existingDonation.studentId !== data.studentId) {
-      await updateStudentTotalDonations(existingDonation.studentId, -previousTotal);
-      await updateStudentTotalDonations(data.studentId, newTotal);
-    } else {
-      const difference = newTotal - previousTotal;
-      if (difference !== 0) {
-        await updateStudentTotalDonations(data.studentId, difference);
+      const student = await getStudent(data.studentId);
+      if (!student) {
+        throw new Error("Student not found");
+      }
+
+      updateData = {
+        ...updateData,
+        studentId: data.studentId,
+        donorName: student.fullName,
+        studentName: student.fullName, // Legacy field
+        studentClass: student.class,
+        studentGrade: formatGradeLabel(student.grade, student.coordination),
+      };
+
+      // Handle donor change or total change
+      const existingDonorType = existingDonation.donorType || "student";
+
+      if (existingDonorType === "teacher" && existingDonation.teacherId) {
+        // Changed from teacher to student
+        await updateTeacherTotalDonations(existingDonation.teacherId, -previousTotal);
+        await updateStudentTotalDonations(data.studentId, newTotal);
+      } else if (existingDonation.studentId !== data.studentId) {
+        // Changed student
+        if (existingDonation.studentId) {
+          await updateStudentTotalDonations(existingDonation.studentId, -previousTotal);
+        }
+        await updateStudentTotalDonations(data.studentId, newTotal);
+      } else {
+        // Same student, check if total changed
+        const difference = newTotal - previousTotal;
+        if (difference !== 0) {
+          await updateStudentTotalDonations(data.studentId, difference);
+        }
+      }
+    } else if (data.donorType === "teacher") {
+      if (!data.teacherId) {
+        throw new Error("Teacher ID is required");
+      }
+
+      const teacher = await getTeacher(data.teacherId);
+      if (!teacher) {
+        throw new Error("Teacher not found");
+      }
+
+      updateData = {
+        ...updateData,
+        teacherId: data.teacherId,
+        donorName: teacher.fullName,
+        teacherDepartment: teacher.department,
+      };
+
+      // Handle donor change or total change
+      const existingDonorType = existingDonation.donorType || "student";
+
+      if (existingDonorType === "student" && existingDonation.studentId) {
+        // Changed from student to teacher
+        await updateStudentTotalDonations(existingDonation.studentId, -previousTotal);
+        await updateTeacherTotalDonations(data.teacherId, newTotal);
+      } else if (existingDonation.teacherId !== data.teacherId) {
+        // Changed teacher
+        if (existingDonation.teacherId) {
+          await updateTeacherTotalDonations(existingDonation.teacherId, -previousTotal);
+        }
+        await updateTeacherTotalDonations(data.teacherId, newTotal);
+      } else {
+        // Same teacher, check if total changed
+        const difference = newTotal - previousTotal;
+        if (difference !== 0) {
+          await updateTeacherTotalDonations(data.teacherId, difference);
+        }
       }
     }
+
+    await updateDoc(donationRef, updateData);
   } catch (error) {
     console.error("Error updating donation:", error);
     throw error;
@@ -183,14 +283,21 @@ export async function deleteDonation(id: string): Promise<void> {
   try {
     const donationRef = doc(db, COLLECTION_NAME, id);
 
-    // Get donation data to update student total
+    // Get donation data to update donor total
     const donation = await getDonation(id);
     if (donation) {
       const totalItems = donation.products.reduce(
         (sum, product) => sum + product.quantity,
         0
       );
-      await updateStudentTotalDonations(donation.studentId, -totalItems);
+
+      const donorType = donation.donorType || "student";
+
+      if (donorType === "student" && donation.studentId) {
+        await updateStudentTotalDonations(donation.studentId, -totalItems);
+      } else if (donorType === "teacher" && donation.teacherId) {
+        await updateTeacherTotalDonations(donation.teacherId, -totalItems);
+      }
     }
 
     await deleteDoc(donationRef);
@@ -219,6 +326,29 @@ export async function getDonationsByStudent(studentId: string): Promise<Donation
     })) as Donation[];
   } catch (error) {
     console.error("Error getting donations by student:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get donations by teacher
+ */
+export async function getDonationsByTeacher(teacherId: string): Promise<Donation[]> {
+  try {
+    const donationsRef = collection(db, COLLECTION_NAME);
+    const q = query(
+      donationsRef,
+      where("teacherId", "==", teacherId),
+      orderBy("date", "desc")
+    );
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as Donation[];
+  } catch (error) {
+    console.error("Error getting donations by teacher:", error);
     throw error;
   }
 }

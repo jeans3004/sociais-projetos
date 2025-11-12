@@ -4,12 +4,13 @@ import { useState, useEffect } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { donationSchema } from "@/lib/validators";
-import { Donation, DonationFormData, Student, PRODUCT_TYPES, ProductType } from "@/types";
+import { Donation, DonationFormData, Student, Teacher, PRODUCT_TYPES, ProductType } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 import { StudentCombobox } from "@/components/StudentCombobox";
+import { TeacherCombobox } from "@/components/TeacherCombobox";
 import {
   Select,
   SelectContent,
@@ -25,7 +26,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getStudents } from "@/lib/firebase/students";
+import { getTeachers } from "@/lib/firebase/teachers";
 
 interface DonationFormProps {
   donation?: Donation | null;
@@ -42,6 +45,8 @@ export function DonationForm({
 }: DonationFormProps) {
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<Student[]>([]);
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [donorType, setDonorType] = useState<"student" | "teacher">("student");
 
   const {
     register,
@@ -54,7 +59,9 @@ export function DonationForm({
   } = useForm<DonationFormData>({
     resolver: zodResolver(donationSchema),
     defaultValues: {
+      donorType: "student",
       studentId: "",
+      teacherId: "",
       products: [{ product: "Arroz", quantity: 1, unit: "kg" }],
       date: new Date(),
       notes: "",
@@ -67,6 +74,7 @@ export function DonationForm({
   });
 
   const studentIdValue = watch("studentId");
+  const teacherIdValue = watch("teacherId");
   const products = watch("products");
 
   // Verifica se algum produto é "Outros"
@@ -74,19 +82,26 @@ export function DonationForm({
 
   useEffect(() => {
     loadStudents();
+    loadTeachers();
   }, []);
 
   useEffect(() => {
     if (donation) {
+      const type = donation.donorType || "student";
+      setDonorType(type);
       reset({
-        studentId: donation.studentId,
+        donorType: type,
+        studentId: donation.studentId || "",
+        teacherId: donation.teacherId || "",
         products: donation.products,
         date: donation.date.toDate(),
         notes: donation.notes || "",
       });
     } else {
       reset({
+        donorType: "student",
         studentId: "",
+        teacherId: "",
         products: [{ product: "Arroz", quantity: 1, unit: "kg" }],
         date: new Date(),
         notes: "",
@@ -100,6 +115,15 @@ export function DonationForm({
       setStudents(data.filter((s) => s.status === "active"));
     } catch (error) {
       console.error("Error loading students:", error);
+    }
+  };
+
+  const loadTeachers = async () => {
+    try {
+      const data = await getTeachers();
+      setTeachers(data.filter((t) => t.status === "active"));
+    } catch (error) {
+      console.error("Error loading teachers:", error);
     }
   };
 
@@ -130,19 +154,57 @@ export function DonationForm({
 
         <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="studentId">Aluno *</Label>
-            <StudentCombobox
-              students={students}
-              value={studentIdValue}
-              onValueChange={(value) => setValue("studentId", value)}
-              placeholder="Digite para buscar um aluno..."
-            />
-            {errors.studentId && (
-              <p className="text-sm text-destructive">
-                {errors.studentId.message}
-              </p>
-            )}
+            <Label>Tipo de Doador *</Label>
+            <Tabs
+              value={donorType}
+              onValueChange={(value) => {
+                const newType = value as "student" | "teacher";
+                setDonorType(newType);
+                setValue("donorType", newType);
+                // Limpar os IDs ao trocar de tipo
+                setValue("studentId", "");
+                setValue("teacherId", "");
+              }}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="student">Aluno</TabsTrigger>
+                <TabsTrigger value="teacher">Professor</TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
+
+          {donorType === "student" ? (
+            <div className="space-y-2">
+              <Label htmlFor="studentId">Aluno *</Label>
+              <StudentCombobox
+                students={students}
+                value={studentIdValue || ""}
+                onValueChange={(value) => setValue("studentId", value)}
+                placeholder="Digite para buscar um aluno..."
+              />
+              {errors.studentId && (
+                <p className="text-sm text-destructive">
+                  {errors.studentId.message}
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="teacherId">Professor *</Label>
+              <TeacherCombobox
+                teachers={teachers}
+                value={teacherIdValue || ""}
+                onValueChange={(value) => setValue("teacherId", value)}
+                placeholder="Digite para buscar um professor..."
+              />
+              {errors.teacherId && (
+                <p className="text-sm text-destructive">
+                  {errors.teacherId.message}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="date">Data *</Label>

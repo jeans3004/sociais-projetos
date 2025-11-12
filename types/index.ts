@@ -49,6 +49,20 @@ export interface Student {
   updatedAt: Timestamp;
 }
 
+// Teacher types
+export interface Teacher {
+  id: string;
+  fullName: string;
+  email: string;
+  department?: string; // Departamento: Matemática, Português, etc.
+  registrationNumber?: string; // Matrícula
+  phone?: string; // Telefone
+  status: "active" | "inactive";
+  totalDonations: number; // Total de doações (quantidade de itens)
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 export interface StudentFormData {
   fullName: string;
   email?: string;
@@ -58,6 +72,15 @@ export interface StudentFormData {
   shift?: string;
   coordination?: string;
   registrationNumber?: string;
+  status: "active" | "inactive";
+}
+
+export interface TeacherFormData {
+  fullName: string;
+  email: string;
+  department?: string;
+  registrationNumber?: string;
+  phone?: string;
   status: "active" | "inactive";
 }
 
@@ -74,9 +97,15 @@ export interface StudentImportData {
 // Donation types
 export interface Donation {
   id: string;
-  studentId: string;
-  studentName?: string; // Denormalized for easier queries
-  studentClass?: string; // Denormalized
+  donorType: "student" | "teacher"; // Tipo de doador
+  studentId?: string; // ID do aluno (se donorType = "student")
+  teacherId?: string; // ID do professor (se donorType = "teacher")
+  donorName?: string; // Nome do doador (desnormalizado)
+  studentClass?: string; // Turma do aluno (desnormalizado)
+  studentGrade?: string; // Série do aluno (desnormalizado)
+  teacherDepartment?: string; // Departamento do professor (desnormalizado)
+  // Legacy fields for backward compatibility
+  studentName?: string; // @deprecated - use donorName
   products: ProductDonation[]; // Lista de produtos doados
   date: Timestamp;
   receiptUrl?: string;
@@ -90,7 +119,9 @@ export interface Donation {
 }
 
 export interface DonationFormData {
-  studentId: string;
+  donorType: "student" | "teacher";
+  studentId?: string;
+  teacherId?: string;
   products: ProductDonation[];
   date: Date;
   receiptUrl?: string;

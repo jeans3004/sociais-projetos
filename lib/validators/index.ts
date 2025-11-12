@@ -13,6 +13,16 @@ export const studentSchema = z.object({
   status: z.enum(["active", "inactive"]),
 });
 
+// Teacher validation schema
+export const teacherSchema = z.object({
+  fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido"),
+  department: z.string().optional(),
+  registrationNumber: z.string().optional(),
+  phone: z.string().optional(),
+  status: z.enum(["active", "inactive"]),
+});
+
 // Product donation validation schema
 export const productDonationSchema = z.object({
   product: z.enum([
@@ -33,7 +43,9 @@ export const productDonationSchema = z.object({
 
 // Donation validation schema
 export const donationSchema = z.object({
-  studentId: z.string().min(1, "Aluno é obrigatório"),
+  donorType: z.enum(["student", "teacher"]),
+  studentId: z.string().optional(),
+  teacherId: z.string().optional(),
   products: z
     .array(productDonationSchema)
     .min(1, "Adicione pelo menos um produto"),
@@ -41,6 +53,20 @@ export const donationSchema = z.object({
   receiptUrl: z.string().url("URL inválida").optional().or(z.literal("")),
   notes: z.string().optional(),
 }).refine(
+  (data) => {
+    // Validar que studentId ou teacherId está presente conforme o donorType
+    if (data.donorType === "student") {
+      return data.studentId && data.studentId.trim().length > 0;
+    } else if (data.donorType === "teacher") {
+      return data.teacherId && data.teacherId.trim().length > 0;
+    }
+    return false;
+  },
+  {
+    message: "Selecione um aluno ou professor",
+    path: ["studentId"], // Will show error on the appropriate field
+  }
+).refine(
   (data) => {
     // Se algum produto for "Outros", observações são obrigatórias
     const hasOthers = data.products.some((p) => p.product === "Outros");

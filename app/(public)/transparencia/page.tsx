@@ -337,7 +337,8 @@ export default function TransparencyPage() {
         return sum + quantity;
       }, 0);
 
-      const student = studentIndex.get(donation.studentId);
+      // Handle both student and teacher donations
+      const student = donation.studentId ? studentIndex.get(donation.studentId) : undefined;
       const grade = typeof student?.grade === "number" ? student.grade : extractGradeFromClass(donation.studentClass);
       const classSource = student?.class || donation.studentClass || "Não informado";
       const className = formatClassLabel(grade, classSource);
@@ -347,11 +348,14 @@ export default function TransparencyPage() {
         .filter(Boolean)
         .join(", ");
 
+      // Use donorName if available (new field), fallback to studentName (legacy)
+      const donorName = donation.donorName || donation.studentName || "Anônimo";
+
       return {
         id: donation.id,
         className,
-        displayName: anonymizeName(donation.studentName),
-        searchName: normalizeDonorName(donation.studentName),
+        displayName: anonymizeName(donorName),
+        searchName: normalizeDonorName(donorName),
         productSummary,
         totalQuantity,
         date,
@@ -367,7 +371,8 @@ export default function TransparencyPage() {
     >();
 
     donations.forEach((donation) => {
-      const student = studentIndex.get(donation.studentId);
+      // Handle both student and teacher donations
+      const student = donation.studentId ? studentIndex.get(donation.studentId) : undefined;
       const grade = typeof student?.grade === "number" ? student.grade : extractGradeFromClass(donation.studentClass);
       const classSource = student?.class || donation.studentClass || "Não informado";
       const className = formatClassLabel(grade, classSource);
@@ -392,7 +397,8 @@ export default function TransparencyPage() {
         entry.grade = grade;
       }
 
-      const donorKey = donation.studentId || donation.studentName || donation.id;
+      // Use appropriate donor identifier
+      const donorKey = donation.studentId || donation.teacherId || donation.donorName || donation.studentName || donation.id;
       if (donorKey) {
         entry.donors.add(donorKey);
       }

@@ -120,7 +120,8 @@ export function getClassRankings(
   >();
 
   donations.forEach((donation) => {
-    const student = studentMap.get(donation.studentId);
+    // Handle both student and teacher donations
+    const student = donation.studentId ? studentMap.get(donation.studentId) : undefined;
 
     const classLabel = student
       ? `${student.grade}º ${student.class}`
@@ -145,7 +146,11 @@ export function getClassRankings(
         donorIds: new Set<string>(),
       };
 
-    existing.donorIds.add(donation.studentId);
+    // Add donor identifier (student or teacher)
+    const donorId = donation.studentId || donation.teacherId;
+    if (donorId) {
+      existing.donorIds.add(donorId);
+    }
 
     classMap.set(classLabel, {
       totalDonations: existing.totalDonations + itemsDonated,
