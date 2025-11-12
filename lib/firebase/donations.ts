@@ -117,54 +117,26 @@ export async function createDonation(
     );
 
     if (data.donorType === "student") {
-      // Suporta seleção múltipla (studentIds) ou única (studentId)
-      const studentIds = data.studentIds && data.studentIds.length > 0
-        ? data.studentIds
-        : (data.studentId ? [data.studentId] : []);
-
-      if (studentIds.length === 0) {
-        throw new Error("Student ID(s) required");
+      if (!data.studentId) {
+        throw new Error("Student ID is required");
       }
 
-      // Buscar todos os alunos selecionados
-      const studentsPromises = studentIds.map(id => getStudent(id));
-      const students = await Promise.all(studentsPromises);
-
-      // Verificar se todos foram encontrados
-      const missingStudents = students.filter(s => !s);
-      if (missingStudents.length > 0) {
-        throw new Error("One or more students not found");
-      }
-
-      const validStudents = students.filter(s => s !== null) as any[];
-
-      // Determinar o nome do doador
-      let donorName: string;
-      let isMultipleStudents = false;
-
-      if (validStudents.length === 1) {
-        donorName = validStudents[0].fullName;
-      } else {
-        donorName = `${validStudents.length} alunos`;
-        isMultipleStudents = true;
+      const student = await getStudent(data.studentId);
+      if (!student) {
+        throw new Error("Student not found");
       }
 
       donationData = {
         ...donationData,
-        studentIds: studentIds,
-        donorName: donorName,
-        isMultipleStudents: isMultipleStudents,
-        // Manter studentId para compatibilidade (primeiro da lista)
-        studentId: studentIds[0],
-        studentName: validStudents[0].fullName, // Legacy field
-        studentClass: validStudents.length === 1 ? validStudents[0].class : undefined,
-        studentGrade: validStudents.length === 1 ? formatGradeLabel(validStudents[0].grade, validStudents[0].coordination) : undefined,
+        studentId: data.studentId,
+        donorName: student.fullName,
+        studentName: student.fullName, // Legacy field
+        studentClass: student.class,
+        studentGrade: formatGradeLabel(student.grade, student.coordination),
       };
 
-      // Update total donations count for all selected students
-      for (const studentId of studentIds) {
-        await updateStudentTotalDonations(studentId, totalItems);
-      }
+      // Update student's total donations count
+      await updateStudentTotalDonations(data.studentId, totalItems);
     } else if (data.donorType === "teacher") {
       // Suporta seleção múltipla (teacherIds) ou única (teacherId)
       const teacherIds = data.teacherIds && data.teacherIds.length > 0
@@ -271,85 +243,45 @@ export async function updateDonation(
     };
 
     if (data.donorType === "student") {
-      // Suporta seleção múltipla (studentIds) ou única (studentId)
-      const studentIds = data.studentIds && data.studentIds.length > 0
-        ? data.studentIds
-        : (data.studentId ? [data.studentId] : []);
-
-      if (studentIds.length === 0) {
-        throw new Error("Student ID(s) required");
+      if (!data.studentId) {
+        throw new Error("Student ID is required");
       }
 
-      // Buscar todos os alunos selecionados
-      const studentsPromises = studentIds.map(id => getStudent(id));
-      const students = await Promise.all(studentsPromises);
-
-      // Verificar se todos foram encontrados
-      const missingStudents = students.filter(s => !s);
-      if (missingStudents.length > 0) {
-        throw new Error("One or more students not found");
-      }
-
-      const validStudents = students.filter(s => s !== null) as any[];
-
-      // Determinar o nome do doador
-      let donorName: string;
-      let isMultipleStudents = false;
-
-      if (validStudents.length === 1) {
-        donorName = validStudents[0].fullName;
-      } else {
-        donorName = `${validStudents.length} alunos`;
-        isMultipleStudents = true;
+      const student = await getStudent(data.studentId);
+      if (!student) {
+        throw new Error("Student not found");
       }
 
       updateData = {
         ...updateData,
-        studentIds: studentIds,
-        donorName: donorName,
-        isMultipleStudents: isMultipleStudents,
-        // Manter studentId para compatibilidade (primeiro da lista)
-        studentId: studentIds[0],
-        studentName: validStudents[0].fullName, // Legacy field
-        studentClass: validStudents.length === 1 ? validStudents[0].class : undefined,
-        studentGrade: validStudents.length === 1 ? formatGradeLabel(validStudents[0].grade, validStudents[0].coordination) : undefined,
+        studentId: data.studentId,
+        donorName: student.fullName,
+        studentName: student.fullName, // Legacy field
+        studentClass: student.class,
+        studentGrade: formatGradeLabel(student.grade, student.coordination),
       };
 
       // Handle donor change or total change
       const existingDonorType = existingDonation.donorType || "student";
-      const existingStudentIds = existingDonation.studentIds || (existingDonation.studentId ? [existingDonation.studentId] : []);
 
       if (existingDonorType === "teacher") {
-        // Changed from teacher to student - remove from all teachers, add to all students
+        // Changed from teacher to student
         const existingTeacherIds = existingDonation.teacherIds || (existingDonation.teacherId ? [existingDonation.teacherId] : []);
         for (const teacherId of existingTeacherIds) {
           await updateTeacherTotalDonations(teacherId, -previousTotal);
         }
-        for (const studentId of studentIds) {
-          await updateStudentTotalDonations(studentId, newTotal);
+        await updateStudentTotalDonations(data.studentId, newTotal);
+      } else if (existingDonation.studentId !== data.studentId) {
+        // Changed student
+        if (existingDonation.studentId) {
+          await updateStudentTotalDonations(existingDonation.studentId, -previousTotal);
         }
+        await updateStudentTotalDonations(data.studentId, newTotal);
       } else {
-        // Handle student changes
-        const removedStudents = existingStudentIds.filter(id => !studentIds.includes(id));
-        const addedStudents = studentIds.filter(id => !existingStudentIds.includes(id));
-        const unchangedStudents = studentIds.filter(id => existingStudentIds.includes(id));
-
-        // Remove from students that are no longer selected
-        for (const studentId of removedStudents) {
-          await updateStudentTotalDonations(studentId, -previousTotal);
-        }
-
-        // Add to newly selected students
-        for (const studentId of addedStudents) {
-          await updateStudentTotalDonations(studentId, newTotal);
-        }
-
-        // Update unchanged students if total changed
+        // Same student, check if total changed
         const difference = newTotal - previousTotal;
         if (difference !== 0) {
-          for (const studentId of unchangedStudents) {
-            await updateStudentTotalDonations(studentId, difference);
-          }
+          await updateStudentTotalDonations(data.studentId, difference);
         }
       }
     } else if (data.donorType === "teacher") {

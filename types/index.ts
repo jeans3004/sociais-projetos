@@ -134,7 +134,6 @@ export interface Donation {
 export interface DonationFormData {
   donorType: "student" | "teacher";
   studentId?: string;
-  studentIds?: string[]; // Seleção múltipla de alunos
   teacherId?: string;
   teacherIds?: string[]; // Seleção múltipla de professores
   products: ProductDonation[];

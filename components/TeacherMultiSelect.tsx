@@ -168,7 +168,8 @@ export function TeacherMultiSelect({
             )}
           </div>
           <CommandList
-            className="max-h-[300px] overflow-y-auto"
+            className="max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent"
+            style={{ touchAction: 'pan-y' }}
             onWheel={(e) => {
               // Garante que o scroll do mouse funcione
               e.stopPropagation();
