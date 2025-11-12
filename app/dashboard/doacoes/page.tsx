@@ -261,20 +261,21 @@ export default function DoacoesPage() {
 
                 return (
                   <TableRow key={donation.id}>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{donorName}</span>
-                        {donorType === "student" && donation.studentClass && (
-                          <span className="text-xs text-muted-foreground">
-                            {donation.studentGrade} - Turma {donation.studentClass}
-                          </span>
-                        )}
-                        {donorType === "teacher" && donation.teacherDepartment && !donation.isCorpoDocente && (
-                          <span className="text-xs text-muted-foreground">
+                    <TableCell className="font-medium">
+                      {donorType === "student" && donation.studentClass ? (
+                        <span>
+                          {donorName} <span className="text-xs text-muted-foreground font-normal">({donation.studentGrade} - Turma {donation.studentClass})</span>
+                        </span>
+                      ) : donorType === "teacher" && donation.teacherDepartment && !donation.isCorpoDocente ? (
+                        <div className="flex flex-col">
+                          <span>{donorName}</span>
+                          <span className="text-xs text-muted-foreground font-normal">
                             {donation.teacherDepartment}
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <span>{donorName}</span>
+                      )}
                     </TableCell>
                     <TableCell className="font-semibold text-green-600">
                       {donation.products.reduce((sum, p) => sum + p.quantity, 0)} itens
