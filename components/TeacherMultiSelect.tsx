@@ -185,7 +185,11 @@ export function TeacherMultiSelect({
                     value={teacher.id}
                     onSelect={() => handleToggle(teacher.id)}
                     disabled={false}
-                    className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3 !opacity-100 ![pointer-events:all]"
+                    className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3 !opacity-100 ![pointer-events:all] min-h-[48px] select-none"
+                    style={{
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation'
+                    }}
                   >
                     <div className="flex items-center gap-3 flex-1">
                       <Checkbox

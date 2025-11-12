@@ -113,14 +113,28 @@ export function StudentCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[500px] p-0" align="start">
+      <PopoverContent
+        className="w-[500px] p-0"
+        align="start"
+        onWheel={(e) => {
+          // Permite scroll do mouse dentro do popover
+          e.stopPropagation();
+        }}
+      >
         <Command shouldFilter={false} className="overflow-hidden">
           <CommandInput
             placeholder="Buscar por nome, série, turma ou matrícula..."
             value={search}
             onValueChange={setSearch}
           />
-          <CommandList className="max-h-[400px] overflow-y-auto overflow-x-hidden">
+          <CommandList
+            className="max-h-[400px] overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent"
+            style={{ touchAction: 'pan-y' }}
+            onWheel={(e) => {
+              // Garante que o scroll do mouse funcione
+              e.stopPropagation();
+            }}
+          >
             {search ? (
               // Modo de busca: mostrar resultados filtrados
               <>
@@ -135,7 +149,11 @@ export function StudentCombobox({
                         setOpen(false);
                       }}
                       disabled={false}
-                      className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3 !opacity-100 ![pointer-events:all]"
+                      className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3 !opacity-100 ![pointer-events:all] min-h-[48px] select-none"
+                      style={{
+                        WebkitTapHighlightColor: 'transparent',
+                        touchAction: 'manipulation'
+                      }}
                     >
                       <Check
                         className={cn(
@@ -180,7 +198,7 @@ export function StudentCombobox({
 
                     return (
                       <AccordionItem key={coordination} value={coordination} className="border-b-0">
-                        <AccordionTrigger className="hover:no-underline py-2 px-2 hover:bg-accent/50 rounded-sm">
+                        <AccordionTrigger className="hover:no-underline py-2 px-2 hover:bg-accent/50 rounded-sm min-h-[44px]">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm">
                               {coordination}
@@ -198,7 +216,7 @@ export function StudentCombobox({
 
                               return (
                                 <AccordionItem key={`${coordination}-${grade}`} value={grade} className="border-b-0">
-                                  <AccordionTrigger className="hover:no-underline py-2 px-2 hover:bg-accent/50 rounded-sm">
+                                  <AccordionTrigger className="hover:no-underline py-2 px-2 hover:bg-accent/50 rounded-sm min-h-[44px]">
                                     <div className="flex items-center gap-2">
                                       <span className="font-medium text-sm">{grade}</span>
                                       <Badge variant="outline" className="font-normal text-xs">
@@ -217,7 +235,7 @@ export function StudentCombobox({
                                             value={className}
                                             className="border-b-0"
                                           >
-                                            <AccordionTrigger className="hover:no-underline py-2 px-2 hover:bg-accent/50 rounded-sm">
+                                            <AccordionTrigger className="hover:no-underline py-2 px-2 hover:bg-accent/50 rounded-sm min-h-[44px]">
                                               <div className="flex items-center gap-2">
                                                 <span className="font-medium text-sm">
                                                   Turma {className}
@@ -236,10 +254,23 @@ export function StudentCombobox({
                                                       onValueChange(student.id === value ? "" : student.id);
                                                       setOpen(false);
                                                     }}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        onValueChange(student.id === value ? "" : student.id);
+                                                        setOpen(false);
+                                                      }
+                                                    }}
                                                     className={cn(
-                                                      "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer hover:bg-accent/50 transition-colors",
+                                                      "flex items-center gap-2 px-2 py-2 rounded-sm cursor-pointer hover:bg-accent/50 transition-colors min-h-[48px] select-none touch-manipulation",
                                                       value === student.id && "bg-accent"
                                                     )}
+                                                    style={{
+                                                      WebkitTapHighlightColor: 'transparent',
+                                                      touchAction: 'manipulation'
+                                                    }}
                                                   >
                                                     <Check
                                                       className={cn(
