@@ -85,9 +85,10 @@ export default function DoacoesPage() {
       return;
     }
 
-    const filtered = donations.filter((donation) =>
-      donation.studentName?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filtered = donations.filter((donation) => {
+      const donorName = donation.donorName || donation.studentName || "";
+      return donorName.toLowerCase().includes(searchTerm.toLowerCase());
+    });
     setFilteredDonations(filtered);
   }, [searchTerm, donations]);
 
@@ -223,7 +224,7 @@ export default function DoacoesPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Buscar por aluno ou forma de pagamento..."
+            placeholder="Buscar por doador..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -235,10 +236,10 @@ export default function DoacoesPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Aluno</TableHead>
+              <TableHead>Doador</TableHead>
               <TableHead>Valor</TableHead>
               <TableHead>Data</TableHead>
-              <TableHead>Pagamento</TableHead>
+              <TableHead>Produtos</TableHead>
               <TableHead>Registrado por</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -253,27 +254,44 @@ export default function DoacoesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredDonations.map((donation) => (
-                <TableRow key={donation.id}>
-                  <TableCell className="font-medium">
-                    {donation.studentName}
-                  </TableCell>
-                  <TableCell className="font-semibold text-green-600">
-                    {donation.products.reduce((sum, p) => sum + p.quantity, 0)} itens
-                  </TableCell>
-                  <TableCell>{formatDate(donation.date.toDate())}</TableCell>
-                  <TableCell>
-                    <div className="text-xs">
-                      {donation.products.map((p, i) => (
-                        <div key={i}>
-                          {p.product}: {p.quantity} {p.unit}
-                        </div>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {donation.registeredByName}
-                  </TableCell>
+              filteredDonations.map((donation) => {
+                // Usar donorName se disponível, caso contrário usar studentName (legacy)
+                const donorName = donation.donorName || donation.studentName || "Doador não informado";
+                const donorType = donation.donorType || "student";
+
+                return (
+                  <TableRow key={donation.id}>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{donorName}</span>
+                        {donorType === "student" && donation.studentClass && (
+                          <span className="text-xs text-muted-foreground">
+                            {donation.studentGrade} - Turma {donation.studentClass}
+                          </span>
+                        )}
+                        {donorType === "teacher" && donation.teacherDepartment && !donation.isCorpoDocente && (
+                          <span className="text-xs text-muted-foreground">
+                            {donation.teacherDepartment}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-semibold text-green-600">
+                      {donation.products.reduce((sum, p) => sum + p.quantity, 0)} itens
+                    </TableCell>
+                    <TableCell>{formatDate(donation.date.toDate())}</TableCell>
+                    <TableCell>
+                      <div className="text-xs">
+                        {donation.products.map((p, i) => (
+                          <div key={i}>
+                            {p.product}: {p.quantity} {p.unit}
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {donation.registeredByName}
+                    </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button
@@ -303,7 +321,8 @@ export default function DoacoesPage() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -338,19 +357,34 @@ export default function DoacoesPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {selectedDonation && (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground">Quem doou</p>
-                <p className="text-base font-semibold">
-                  {selectedDonation.studentName || "Aluno não informado"}
-                </p>
-                {selectedDonation.studentClass && (
-                  <p className="text-sm text-muted-foreground">
-                    Turma: {selectedDonation.studentClass}
-                  </p>
-                )}
-              </div>
+          {selectedDonation && (() => {
+            const donorName = selectedDonation.donorName || selectedDonation.studentName || "Doador não informado";
+            const donorType = selectedDonation.donorType || "student";
+
+            return (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Quem doou</p>
+                  <p className="text-base font-semibold">{donorName}</p>
+
+                  {donorType === "student" && selectedDonation.studentClass && (
+                    <p className="text-sm text-muted-foreground">
+                      {selectedDonation.studentGrade} - Turma {selectedDonation.studentClass}
+                    </p>
+                  )}
+
+                  {donorType === "teacher" && selectedDonation.isCorpoDocente && (
+                    <p className="text-sm text-muted-foreground">
+                      Todos os professores
+                    </p>
+                  )}
+
+                  {donorType === "teacher" && !selectedDonation.isCorpoDocente && selectedDonation.teacherDepartment && (
+                    <p className="text-sm text-muted-foreground">
+                      Departamento: {selectedDonation.teacherDepartment}
+                    </p>
+                  )}
+                </div>
 
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">Quando doou</p>
@@ -396,16 +430,17 @@ export default function DoacoesPage() {
                 )}
               </div>
 
-              {selectedDonation.registeredByName && (
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">
-                    Registrado por
-                  </p>
-                  <p>{selectedDonation.registeredByName}</p>
-                </div>
-              )}
-            </div>
-          )}
+                {selectedDonation.registeredByName && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Registrado por
+                    </p>
+                    <p>{selectedDonation.registeredByName}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
