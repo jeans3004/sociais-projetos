@@ -112,7 +112,8 @@ export function TeacherCombobox({
                     onValueChange(teacher.id === value ? "" : teacher.id);
                     setOpen(false);
                   }}
-                  className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3"
+                  disabled={false}
+                  className="cursor-pointer hover:bg-accent/50 aria-selected:bg-accent/50 transition-colors py-3 !opacity-100 ![pointer-events:all]"
                 >
                   <Check
                     className={cn(
