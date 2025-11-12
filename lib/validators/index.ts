@@ -39,7 +39,20 @@ export const productDonationSchema = z.object({
   ]),
   quantity: z.number().positive("Quantidade deve ser positiva"),
   unit: z.enum(["kg", "g", "un", "lt", "pacote"]),
-});
+  description: z.string().optional(),
+}).refine(
+  (data) => {
+    // Se o produto for "Outros", a descrição é obrigatória
+    if (data.product === "Outros") {
+      return data.description && data.description.trim().length > 0;
+    }
+    return true;
+  },
+  {
+    message: "Descrição é obrigatória para o produto 'Outros'",
+    path: ["description"],
+  }
+);
 
 // Donation validation schema
 export const donationSchema = z.object({
@@ -71,19 +84,6 @@ export const donationSchema = z.object({
   {
     message: "Selecione um aluno ou professor",
     path: ["studentIds"], // Will show error on the appropriate field
-  }
-).refine(
-  (data) => {
-    // Se algum produto for "Outros", observações são obrigatórias
-    const hasOthers = data.products.some((p) => p.product === "Outros");
-    if (hasOthers) {
-      return data.notes && data.notes.trim().length > 0;
-    }
-    return true;
-  },
-  {
-    message: "Observações são obrigatórias quando o produto 'Outros' é selecionado",
-    path: ["notes"],
   }
 );
 

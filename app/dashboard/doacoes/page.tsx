@@ -285,7 +285,11 @@ export default function DoacoesPage() {
                       <div className="text-xs">
                         {donation.products.map((p, i) => (
                           <div key={i}>
-                            {p.product}: {p.quantity} {p.unit}
+                            {p.product === "Outros" && p.description ? (
+                              <span>{p.description}: {p.quantity} {p.unit}</span>
+                            ) : (
+                              <span>{p.product}: {p.quantity} {p.unit}</span>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -398,12 +402,19 @@ export default function DoacoesPage() {
                   {selectedDonation.products.map((product, index) => (
                     <li
                       key={`${product.product}-${index}`}
-                      className="flex items-center justify-between rounded-md border p-2"
+                      className="rounded-md border p-2"
                     >
-                      <span className="font-medium">{product.product}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {product.quantity} {product.unit}
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">
+                          {product.product === "Outros" && product.description ? product.description : product.product}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {product.quantity} {product.unit}
+                        </span>
+                      </div>
+                      {product.product === "Outros" && product.description && (
+                        <p className="text-xs text-muted-foreground mt-1">Categoria: Outros</p>
+                      )}
                     </li>
                   ))}
                 </ul>

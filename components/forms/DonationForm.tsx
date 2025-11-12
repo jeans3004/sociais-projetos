@@ -79,10 +79,6 @@ export function DonationForm({
   const studentIdsValue = watch("studentIds");
   const teacherIdValue = watch("teacherId");
   const teacherIdsValue = watch("teacherIds");
-  const products = watch("products");
-
-  // Verifica se algum produto é "Outros"
-  const hasOthers = products?.some((p) => p.product === "Outros");
 
   useEffect(() => {
     loadStudents();
@@ -350,6 +346,25 @@ export function DonationForm({
                         </p>
                       )}
                     </div>
+
+                    {/* Campo de descrição para o produto "Outros" */}
+                    {watch(`products.${index}.product`) === "Outros" && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          Descrição do produto <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Descreva o produto..."
+                          className="h-9"
+                          {...register(`products.${index}.description`)}
+                        />
+                        {errors.products?.[index]?.description && (
+                          <p className="text-xs text-destructive">
+                            {errors.products[index]?.description?.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {fields.length > 1 && (
@@ -369,24 +384,12 @@ export function DonationForm({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">
-              Observações {hasOthers && <span className="text-destructive">*</span>}
-            </Label>
+            <Label htmlFor="notes">Observações Gerais</Label>
             <Input
               id="notes"
               {...register("notes")}
-              placeholder={
-                hasOthers
-                  ? "Descreva o produto 'Outros' (obrigatório)"
-                  : "Observações adicionais (opcional)"
-              }
-              className={hasOthers ? "border-yellow-500" : ""}
+              placeholder="Observações adicionais sobre a doação (opcional)"
             />
-            {hasOthers && !errors.notes && (
-              <p className="text-sm text-yellow-600">
-                ⚠️ Campo obrigatório quando o produto &quot;Outros&quot; é selecionado
-              </p>
-            )}
             {errors.notes && (
               <p className="text-sm text-destructive">{errors.notes.message}</p>
             )}

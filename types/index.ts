@@ -30,6 +30,7 @@ export interface ProductDonation {
   product: ProductType;
   quantity: number;
   unit: "kg" | "g" | "un" | "lt" | "pacote";
+  description?: string; // Descrição específica do produto (obrigatória para "Outros")
 }
 
 // Student types
