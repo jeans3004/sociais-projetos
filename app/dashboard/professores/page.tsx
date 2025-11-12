@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Plus, Search, Edit, Trash2, Users2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Users2, Upload } from "lucide-react";
 import { RoleGuard } from "@/components/RoleGuard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { TeacherForm } from "@/components/forms/TeacherForm";
+import { ImportTeachersDialog } from "@/components/ImportTeachersDialog";
 import {
   getTeachers,
   createTeacher,
@@ -39,6 +40,7 @@ export default function ProfessoresPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState<Teacher | null>(null);
@@ -177,10 +179,19 @@ export default function ProfessoresPage() {
                 Gerencie o corpo docente da escola
               </p>
             </div>
-            <Button onClick={handleAddTeacher}>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Professor
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setImportDialogOpen(true)}
+                variant="outline"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Importar
+              </Button>
+              <Button onClick={handleAddTeacher}>
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Professor
+              </Button>
+            </div>
           </div>
 
           {/* Stats */}
@@ -298,6 +309,12 @@ export default function ProfessoresPage() {
             setSelectedTeacher(null);
           }}
           onSubmit={handleSubmit}
+        />
+
+        <ImportTeachersDialog
+          open={importDialogOpen}
+          onClose={() => setImportDialogOpen(false)}
+          onImportComplete={loadTeachers}
         />
 
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

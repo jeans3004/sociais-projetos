@@ -94,6 +94,14 @@ export interface StudentImportData {
   "E-mail": string;
 }
 
+export interface TeacherImportData {
+  "Professor": string;
+  "E-mail": string;
+  "Departamento": string;
+  "Matrícula": string;
+  "Telefone": string;
+}
+
 // Donation types
 export interface Donation {
   id: string;
