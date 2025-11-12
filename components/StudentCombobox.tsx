@@ -120,8 +120,12 @@ export function StudentCombobox({
           // Permite scroll do mouse dentro do popover
           e.stopPropagation();
         }}
+        style={{
+          touchAction: 'auto',
+          WebkitOverflowScrolling: 'touch',
+        } as React.CSSProperties}
       >
-        <Command shouldFilter={false} className="overflow-hidden">
+        <Command shouldFilter={false} className="overflow-visible">
           <CommandInput
             placeholder="Buscar por nome, série, turma ou matrícula..."
             value={search}
@@ -129,9 +133,21 @@ export function StudentCombobox({
           />
           <CommandList
             className="max-h-[400px] overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent"
-            style={{ touchAction: 'pan-y' }}
+            style={{
+              touchAction: 'pan-y',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+            } as React.CSSProperties}
             onWheel={(e) => {
               // Garante que o scroll do mouse funcione
+              e.stopPropagation();
+            }}
+            onTouchStart={(e) => {
+              // Permite eventos de touch
+              e.stopPropagation();
+            }}
+            onTouchMove={(e) => {
+              // Permite scroll com touch
               e.stopPropagation();
             }}
           >

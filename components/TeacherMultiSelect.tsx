@@ -135,8 +135,12 @@ export function TeacherMultiSelect({
           // Permite scroll do mouse dentro do popover
           e.stopPropagation();
         }}
+        style={{
+          touchAction: 'auto',
+          WebkitOverflowScrolling: 'touch',
+        } as React.CSSProperties}
       >
-        <Command shouldFilter={false} className="overflow-hidden">
+        <Command shouldFilter={false} className="overflow-visible">
           <CommandInput
             placeholder="Buscar por nome, departamento ou matrícula..."
             value={search}
@@ -169,9 +173,21 @@ export function TeacherMultiSelect({
           </div>
           <CommandList
             className="max-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-track]:bg-transparent"
-            style={{ touchAction: 'pan-y' }}
+            style={{
+              touchAction: 'pan-y',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
+            } as React.CSSProperties}
             onWheel={(e) => {
               // Garante que o scroll do mouse funcione
+              e.stopPropagation();
+            }}
+            onTouchStart={(e) => {
+              // Permite eventos de touch
+              e.stopPropagation();
+            }}
+            onTouchMove={(e) => {
+              // Permite scroll com touch
               e.stopPropagation();
             }}
           >
