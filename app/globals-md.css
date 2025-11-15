@@ -1,0 +1,174 @@
+/* Estilos customizados para o editor de markdown */
+
+/* Ajustes para o tema claro */
+[data-color-mode="light"] .wmde-markdown {
+  background-color: transparent;
+}
+
+[data-color-mode="light"] .wmde-markdown h1,
+[data-color-mode="light"] .wmde-markdown h2,
+[data-color-mode="light"] .wmde-markdown h3,
+[data-color-mode="light"] .wmde-markdown h4,
+[data-color-mode="light"] .wmde-markdown h5,
+[data-color-mode="light"] .wmde-markdown h6 {
+  border-bottom: none;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+
+[data-color-mode="light"] .wmde-markdown h1 {
+  font-size: 1.5em;
+}
+
+[data-color-mode="light"] .wmde-markdown h2 {
+  font-size: 1.3em;
+}
+
+[data-color-mode="light"] .wmde-markdown h3 {
+  font-size: 1.1em;
+}
+
+[data-color-mode="light"] .wmde-markdown p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+[data-color-mode="light"] .wmde-markdown ul,
+[data-color-mode="light"] .wmde-markdown ol {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-left: 1.5em;
+}
+
+[data-color-mode="light"] .wmde-markdown code {
+  background-color: hsl(var(--muted));
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+[data-color-mode="light"] .wmde-markdown pre {
+  background-color: hsl(var(--muted));
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+[data-color-mode="light"] .wmde-markdown blockquote {
+  border-left: 4px solid hsl(var(--primary));
+  padding-left: 1em;
+  margin-left: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+[data-color-mode="light"] .wmde-markdown a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+/* Ajustes para o tema escuro */
+[data-color-mode="dark"] .wmde-markdown {
+  background-color: transparent;
+  color: hsl(var(--foreground));
+}
+
+[data-color-mode="dark"] .wmde-markdown h1,
+[data-color-mode="dark"] .wmde-markdown h2,
+[data-color-mode="dark"] .wmde-markdown h3,
+[data-color-mode="dark"] .wmde-markdown h4,
+[data-color-mode="dark"] .wmde-markdown h5,
+[data-color-mode="dark"] .wmde-markdown h6 {
+  border-bottom: none;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  color: hsl(var(--foreground));
+}
+
+[data-color-mode="dark"] .wmde-markdown h1 {
+  font-size: 1.5em;
+}
+
+[data-color-mode="dark"] .wmde-markdown h2 {
+  font-size: 1.3em;
+}
+
+[data-color-mode="dark"] .wmde-markdown h3 {
+  font-size: 1.1em;
+}
+
+[data-color-mode="dark"] .wmde-markdown p {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  color: hsl(var(--foreground));
+}
+
+[data-color-mode="dark"] .wmde-markdown ul,
+[data-color-mode="dark"] .wmde-markdown ol {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  padding-left: 1.5em;
+}
+
+[data-color-mode="dark"] .wmde-markdown code {
+  background-color: hsl(var(--muted));
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  color: hsl(var(--foreground));
+}
+
+[data-color-mode="dark"] .wmde-markdown pre {
+  background-color: hsl(var(--muted));
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+[data-color-mode="dark"] .wmde-markdown pre code {
+  background-color: transparent;
+}
+
+[data-color-mode="dark"] .wmde-markdown blockquote {
+  border-left: 4px solid hsl(var(--primary));
+  padding-left: 1em;
+  margin-left: 0;
+  color: hsl(var(--muted-foreground));
+}
+
+[data-color-mode="dark"] .wmde-markdown a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+
+/* Ajustes gerais para o editor */
+.w-md-editor {
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+}
+
+.w-md-editor-toolbar {
+  border-bottom: 1px solid hsl(var(--border));
+  background-color: hsl(var(--background));
+}
+
+.w-md-editor-toolbar button {
+  color: hsl(var(--foreground));
+}
+
+.w-md-editor-toolbar button:hover {
+  background-color: hsl(var(--muted));
+}
+
+.w-md-editor-content {
+  background-color: hsl(var(--background));
+}
+
+.w-md-editor-text-pre,
+.w-md-editor-text-input {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Ajustes para o preview no card */
+.wmde-markdown-var {
+  --color-canvas-default: transparent;
+}

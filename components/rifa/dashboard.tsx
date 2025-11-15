@@ -13,6 +13,19 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Timestamp } from "firebase/firestore";
 import * as XLSX from "xlsx";
+import dynamic from "next/dynamic";
+import "@uiw/react-md-editor/markdown-editor.css";
+import "@uiw/react-markdown-preview/markdown.css";
+
+const MDEditor = dynamic(
+  () => import("@uiw/react-md-editor"),
+  { ssr: false }
+);
+
+const MDPreview = dynamic(
+  () => import("@uiw/react-markdown-preview"),
+  { ssr: false }
+);
 
 import { StudentCombobox } from "@/components/StudentCombobox";
 import { FiltersBar } from "@/components/rifa/filters-bar";
@@ -162,6 +175,25 @@ export function RifaDashboard({
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const [colorMode, setColorMode] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const updateColorMode = () => {
+      const isDark = document.documentElement.classList.contains("dark");
+      setColorMode(isDark ? "dark" : "light");
+    };
+
+    updateColorMode();
+
+    const observer = new MutationObserver(updateColorMode);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   const [campaigns, setCampaigns] = useState<RaffleCampaign[]>([]);
   const [campaignLoading, setCampaignLoading] = useState(true);
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | undefined>();
@@ -188,6 +220,7 @@ export function RifaDashboard({
 
   const [isCampaignModalOpen, setIsCampaignModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<RaffleCampaign | null>(null);
+  const [campaignDescription, setCampaignDescription] = useState<string>("");
 
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [registerQuantity, setRegisterQuantity] = useState(1);
@@ -506,6 +539,7 @@ export function RifaDashboard({
 
   const handleOpenCampaignModal = useCallback(() => {
     setEditingCampaign(null);
+    setCampaignDescription("");
     setIsCampaignModalOpen(true);
   }, []);
 
@@ -518,6 +552,7 @@ export function RifaDashboard({
 
   const handleEditCampaign = useCallback((campaign: RaffleCampaign) => {
     setEditingCampaign(campaign);
+    setCampaignDescription(campaign.description ?? "");
     setIsCampaignModalOpen(true);
   }, []);
 
@@ -532,7 +567,7 @@ export function RifaDashboard({
       const formData = new FormData(event.currentTarget);
       const name = String(formData.get("name") ?? "").trim();
       const status = String(formData.get("status") ?? "active");
-      const description = String(formData.get("description") ?? "").trim();
+      const description = campaignDescription.trim();
       const startDateValue = formData.get("startDate") as string;
       const endDateValue = formData.get("endDate") as string;
       const goalValue = formData.get("goal") as string;
@@ -631,6 +666,7 @@ export function RifaDashboard({
       });
     },
     [
+      campaignDescription,
       campaignFilterManuallySet,
       editingCampaign,
       onCreateCampaign,
@@ -1522,9 +1558,22 @@ export function RifaDashboard({
               <Card key={campaign.id} className="flex flex-col justify-between">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle>{campaign.name}</CardTitle>
-                      <CardDescription>{campaign.description || "Sem descrição"}</CardDescription>
+                      {campaign.description ? (
+                        <div className="mt-2 text-sm" data-color-mode={colorMode}>
+                          <MDPreview
+                            source={campaign.description}
+                            style={{
+                              backgroundColor: "transparent",
+                              color: "inherit",
+                              fontSize: "0.875rem",
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <CardDescription>Sem descrição</CardDescription>
+                      )}
                     </div>
                     <Badge variant={isCampaignActive(campaign) ? "default" : "outline"}>
                       {campaignStatusLabel(campaign)}
@@ -1573,12 +1622,21 @@ export function RifaDashboard({
             </div>
             <div className="space-y-2">
               <Label htmlFor="campaign-description">Descrição</Label>
-              <Textarea
-                id="campaign-description"
-                name="description"
-                defaultValue={editingCampaign?.description ?? ""}
-                placeholder="Descrição curta (opcional)"
-              />
+              <div data-color-mode={colorMode}>
+                <MDEditor
+                  value={campaignDescription}
+                  onChange={(val) => setCampaignDescription(val ?? "")}
+                  preview="edit"
+                  height={300}
+                  visibleDragbar={false}
+                  textareaProps={{
+                    placeholder: "Adicione uma descrição detalhada da campanha usando formatação markdown...",
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use markdown para formatar o texto. Suporta negrito, itálico, listas, links e muito mais.
+              </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
