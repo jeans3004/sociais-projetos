@@ -26,6 +26,7 @@ export interface RaffleDonationItem {
   product: string;
   quantity: number;
   unit?: string;
+  packageDetail?: string; // Descrição da unidade do pacote (ex: "400 gramas", "500ml")
 }
 
 export interface RaffleDonation {

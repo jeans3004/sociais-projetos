@@ -992,7 +992,7 @@ export function RifaDashboard({
         Turma: donation.studentClass ?? "",
         Série: donation.studentGrade ?? "",
         Produtos: donation.products
-          ?.map((p) => `${p.product}: ${p.quantity} ${p.unit || ""}`)
+          ?.map((p) => `${p.product}: ${p.quantity} ${p.unit || ""}${p.packageDetail ? ` (${p.packageDetail})` : ""}`)
           .join(", ") || "N/A",
         "Total de Itens": donation.products?.reduce((sum, p) => sum + p.quantity, 0) ?? 0,
         "Rifas Concedidas": donation.ticketsGranted ?? 0,

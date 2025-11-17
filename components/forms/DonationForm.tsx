@@ -63,7 +63,7 @@ export function DonationForm({
       studentId: "",
       teacherId: "",
       teacherIds: [],
-      products: [{ product: "Arroz", quantity: 1, unit: "kg" }],
+      products: [{ product: "Arroz", quantity: 1, unit: "kg", packageDetail: "" }],
       date: new Date(),
       notes: "",
     },
@@ -102,7 +102,7 @@ export function DonationForm({
         studentId: "",
         teacherId: "",
         teacherIds: [],
-        products: [{ product: "Arroz", quantity: 1, unit: "kg" }],
+        products: [{ product: "Arroz", quantity: 1, unit: "kg", packageDetail: "" }],
         date: new Date(),
         notes: "",
       });
@@ -239,7 +239,7 @@ export function DonationForm({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => append({ product: "Arroz", quantity: 1, unit: "kg" })}
+                onClick={() => append({ product: "Arroz", quantity: 1, unit: "kg", packageDetail: "" })}
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Adicionar Produto
@@ -338,6 +338,25 @@ export function DonationForm({
                         </p>
                       )}
                     </div>
+
+                    {/* Campo de detalhe para unidade "Pacote" */}
+                    {watch(`products.${index}.unit`) === "pacote" && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">
+                          Detalhe do pacote <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          placeholder="Ex: 400 gramas, 500ml, 1kg"
+                          className="h-9"
+                          {...register(`products.${index}.packageDetail`)}
+                        />
+                        {errors.products?.[index]?.packageDetail && (
+                          <p className="text-xs text-destructive">
+                            {errors.products[index]?.packageDetail?.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     {/* Campo de descrição para o produto "Outros" */}
                     {watch(`products.${index}.product`) === "Outros" && (

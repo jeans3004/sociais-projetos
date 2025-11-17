@@ -286,9 +286,9 @@ export default function DoacoesPage() {
                         {donation.products.map((p, i) => (
                           <div key={i}>
                             {p.product === "Outros" && p.description ? (
-                              <span>{p.description}: {p.quantity} {p.unit}</span>
+                              <span>{p.description}: {p.quantity} {p.unit}{p.packageDetail ? ` (${p.packageDetail})` : ""}</span>
                             ) : (
-                              <span>{p.product}: {p.quantity} {p.unit}</span>
+                              <span>{p.product}: {p.quantity} {p.unit}{p.packageDetail ? ` (${p.packageDetail})` : ""}</span>
                             )}
                           </div>
                         ))}

@@ -91,7 +91,7 @@ export default function RelatoriosPage() {
       const data = filteredDonations.map((d) => ({
         Aluno: d.studentName,
         Turma: d.studentClass || "",
-        Produtos: d.products.map(p => `${p.product}: ${p.quantity} ${p.unit}`).join(", "),
+        Produtos: d.products.map(p => `${p.product}: ${p.quantity} ${p.unit}${p.packageDetail ? ` (${p.packageDetail})` : ""}`).join(", "),
         "Total de Itens": d.products.reduce((sum, p) => sum + p.quantity, 0),
         Data: formatDate(d.date.toDate()),
         "Registrado por": d.registeredByName,
@@ -245,7 +245,7 @@ export default function RelatoriosPage() {
                         <div className="text-xs">
                           {donation.products.map((p, i) => (
                             <div key={i}>
-                              {p.product}: {p.quantity} {p.unit}
+                              {p.product}: {p.quantity} {p.unit}{p.packageDetail ? ` (${p.packageDetail})` : ""}
                             </div>
                           ))}
                         </div>

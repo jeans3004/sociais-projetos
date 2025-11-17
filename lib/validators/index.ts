@@ -40,6 +40,7 @@ export const productDonationSchema = z.object({
   quantity: z.number().positive("Quantidade deve ser positiva"),
   unit: z.enum(["kg", "g", "un", "lt", "pacote"]),
   description: z.string().optional(),
+  packageDetail: z.string().optional(),
 }).refine(
   (data) => {
     // Se o produto for "Outros", a descrição é obrigatória
@@ -51,6 +52,18 @@ export const productDonationSchema = z.object({
   {
     message: "Descrição é obrigatória para o produto 'Outros'",
     path: ["description"],
+  }
+).refine(
+  (data) => {
+    // Se a unidade for "pacote", o detalhe do pacote é obrigatório
+    if (data.unit === "pacote") {
+      return data.packageDetail && data.packageDetail.trim().length > 0;
+    }
+    return true;
+  },
+  {
+    message: "Detalhe do pacote é obrigatório (ex: '400 gramas', '500ml')",
+    path: ["packageDetail"],
   }
 );
 

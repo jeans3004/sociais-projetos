@@ -31,6 +31,7 @@ export interface ProductDonation {
   quantity: number;
   unit: "kg" | "g" | "un" | "lt" | "pacote";
   description?: string; // Descrição específica do produto (obrigatória para "Outros")
+  packageDetail?: string; // Descrição da unidade do pacote (obrigatória para "pacote") - Ex: "400 gramas", "500ml"
 }
 
 // Student types
