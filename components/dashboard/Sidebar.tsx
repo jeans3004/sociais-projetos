@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   LifeBuoy,
   BookOpen,
+  Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/firebase/auth";
@@ -51,6 +52,12 @@ const menuItems = [
     title: "Relatórios",
     href: "/dashboard/relatorios",
     icon: FileText,
+    roles: ["admin", "user"],
+  },
+  {
+    title: "Ranking",
+    href: "/dashboard/ranking",
+    icon: Trophy,
     roles: ["admin", "user"],
   },
   {
